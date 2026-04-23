@@ -26,6 +26,7 @@ env/
 # ML artifacts
 backend/ml/weights/
 backend/ml/data/
+backend/ml/runs/
 wandb/
 mlruns/
 

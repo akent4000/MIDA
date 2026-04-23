@@ -1,0 +1,47 @@
+# Baseline RSNA Pneumonia classifier config.
+#
+# Values tuned for the dev box (RTX 3060 12GB, i7-10700). If you hit OOM,
+# drop batch_size to 16 and keep lr — cosine schedule handles it.
+# 30 epochs × ~26k train images / batch 32 ≈ ~800 steps/epoch.
+
+run_name: baseline_resnet50
+seed: 42
+
+model:
+  arch: resnet50
+  weights: IMAGENET1K_V2  # torchvision enum name
+  num_classes: 1          # binary, single logit + BCEWithLogits
+
+data:
+  # Paths resolve from repo root. Defaults match datasets.py.
+  splits_path: backend/ml/configs/splits_rsna_v1.json
+  image_dir: backend/ml/data/rsna/stage_2_train_images
+  labels_csv: backend/ml/data/rsna/stage_2_train_labels.csv
+  image_size: 224
+  batch_size: 64          # bumped from 32 → 64 (VRAM headroom on RTX 3060 12GB)
+  num_workers: 8          # i7-10700 has 16 threads; 8 keeps the main loop fed
+  prefetch_factor: 4      # each worker queues 4 batches ahead → hides I/O jitter
+  pin_memory: true
+
+optim:
+  name: adamw
+  lr: 2.0e-4              # linear scaling with 2× batch (1e-4 → 2e-4)
+  weight_decay: 1.0e-4
+  scheduler: cosine
+  warmup_epochs: 1        # cushions the lr bump
+
+train:
+  epochs: 30
+  amp: true
+  grad_clip: 1.0
+  early_stop_patience: 5     # stop if val_auc doesn't improve for N epochs
+  early_stop_metric: val_auc
+  log_every_steps: 50        # batches between stdout progress lines within an epoch
+
+loss:
+  name: bce_with_logits
+  pos_weight: auto           # "auto" → n_neg / n_pos from train labels; or a float
+
+output:
+  run_dir: backend/ml/runs       # runs/<run_name>_<timestamp>/
+  weights_dir: backend/ml/weights  # weights/<run_name>_<timestamp>/{best,last}.pt
