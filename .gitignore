@@ -24,12 +24,15 @@ env/
 *.ipynb_checkpoints
 
 # ML artifacts
-backend/ml/weights/*.pt
-backend/ml/weights/*.pth
-backend/ml/weights/*.onnx
-backend/ml/weights/*.onnx.quantized
+backend/ml/weights/
+backend/ml/data/
 wandb/
 mlruns/
+
+# Kaggle credentials — must never be committed
+kaggle.json
+kaggle_api_token
+.kaggle/
 
 # Node / Frontend
 node_modules/

@@ -86,7 +86,7 @@ git push / scp model.onnx──►    Caddy (уже установлен ✅)
 
 ### 3.1. Machine Learning (десктоп, RTX 3060)
 - Python 3.11+
-- PyTorch 2.x + CUDA 12.1
+- PyTorch 2.x + CUDA 12.8 (cu128 wheels; план изначально указывал 12.1, но wheels под Python 3.13 есть только с cu124+)
 - MONAI (специализированный фреймворк для медицинских изображений)
 - pydicom, SimpleITK, nibabel (работа с медицинскими форматами)
 - NumPy, OpenCV, scikit-image
