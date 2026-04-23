@@ -18,5 +18,7 @@ repos:
       - id: check-yaml
       - id: check-toml
       - id: check-added-large-files
-        args: [--maxkb=1024]
+        # 2 MB: splits_rsna_v*.json is ~1.3 MB (26k patientIds). Model weights
+        # and notebook outputs still gitignored separately.
+        args: [--maxkb=2048]
       - id: detect-private-key

@@ -15,6 +15,7 @@ dependencies = [
     "SimpleITK>=2.3",
     "nibabel>=5.2",
     "scikit-image>=0.22",
+    "scikit-learn>=1.3",
     "numpy>=1.26",
     "pandas>=2.1",
     "pillow>=10.0",
@@ -46,6 +47,10 @@ include = ["app*", "ml*"]
 [tool.ruff]
 line-length = 100
 target-version = "py311"
+# Jupyter notebooks use their own coding style (semicolons to suppress return
+# prints, chained one-liners, etc.). Lint them with `nbqa` if you want, but
+# don't block commits on normal notebook idioms.
+extend-exclude = ["*.ipynb"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP", "N", "SIM"]
