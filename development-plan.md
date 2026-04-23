@@ -100,7 +100,7 @@ git push / scp model.onnx──►    Caddy (уже установлен ✅)
 - Pydantic v2 (валидация, сериализация)
 - Uvicorn (ASGI-сервер)
 - Celery + Redis (фоновые задачи, 1 воркер на сервере из-за i3-4030U)
-- SQLAlchemy 2.x + Alembic (ORM и миграции)
+- SQLModel + Alembic (ORM и миграции; объединяет Pydantic-схемы и SQLAlchemy-модели в одном классе)
 - pytest (тестирование)
 
 ### 3.3. Frontend
@@ -145,8 +145,7 @@ medical-imaging-app/
 │   │   │   ├── inference/    # Обёртка над моделью
 │   │   │   ├── postprocessing/# Обработка масок, метрики
 │   │   │   └── explainability/# Grad-CAM и другие методы
-│   │   ├── models/           # SQLAlchemy-модели БД
-│   │   ├── schemas/          # Pydantic-схемы (API-контракты)
+│   │   ├── models/           # SQLModel-модели (таблицы БД + Pydantic-схемы в одном классе)
 │   │   ├── services/         # Оркестрация модулей
 │   │   ├── workers/          # Celery-задачи
 │   │   └── main.py
@@ -314,7 +313,7 @@ class OnnxInference(ModelInference):
 
 - Настройка FastAPI, Pydantic-схем, зависимостей
 - Реализация эндпоинтов согласно контракту
-- Настройка SQLAlchemy + Alembic, миграции
+- Настройка SQLModel + Alembic, миграции
 - Интеграция Celery + Redis для асинхронного инференса
 - WebSocket-канал для статуса задач
 - Автоматическая генерация OpenAPI-клиента для фронтенда
