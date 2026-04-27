@@ -24,7 +24,7 @@ from pathlib import Path
 
 import numpy as np
 import pydicom
-from pydicom.pixels import apply_voi_lut
+from pydicom.pixels import apply_voi_lut  # type: ignore[attr-defined]
 
 from .types import Metadata, Study
 
@@ -131,8 +131,8 @@ class DicomService:
             study_description=_str("StudyDescription"),
             series_description=_str("SeriesDescription"),
             modality=_str("Modality"),
-            rows=int(getattr(ds, "Rows", arr.shape[0])),
-            columns=int(getattr(ds, "Columns", arr.shape[1])),
+            rows=int(getattr(ds, "Rows", None) or arr.shape[0]),
+            columns=int(getattr(ds, "Columns", None) or arr.shape[1]),
             pixel_spacing=px_spacing,
             manufacturer=_str("Manufacturer"),
         )
@@ -159,7 +159,7 @@ class DicomService:
             tmp = f.name
         try:
             img = nib.load(tmp)
-            data = np.asarray(img.dataobj, dtype=np.float32)
+            data = np.asarray(img.dataobj, dtype=np.float32)  # type: ignore[attr-defined]
             # 3-D volume → take middle axial slice
             if data.ndim == 3:
                 data = data[:, :, data.shape[2] // 2]

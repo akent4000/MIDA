@@ -29,7 +29,7 @@ def list_models(registry: RegistryDep) -> list[ModelListItem]:
         info = (
             registry.get(tool_id).info
             if loaded
-            else registry._classes[tool_id]().info  # type: ignore[attr-defined]
+            else registry._classes[tool_id]().info
         )
         items.append(
             ModelListItem(

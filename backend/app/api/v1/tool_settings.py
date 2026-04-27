@@ -37,9 +37,10 @@ def _resolve_schema(registry: Any, tool_id: str) -> list[Any]:
     tool = (
         registry.get(tool_id)
         if registry.is_loaded(tool_id)
-        else registry._classes[tool_id]()  # type: ignore[attr-defined]
+        else registry._classes[tool_id]()
     )
-    return tool.get_settings_schema()
+    schema: list[Any] = tool.get_settings_schema()
+    return schema
 
 
 @router.get("/{tool_id}/config", response_model=ConfigResponse)

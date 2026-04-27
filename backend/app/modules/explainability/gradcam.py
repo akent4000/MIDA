@@ -54,7 +54,9 @@ class GradCAMExplainer(Explainer):
         def _fwd(_mod: Any, _inp: Any, output: Tensor) -> None:
             self._activations = output.detach()
 
-        def _bwd(_mod: Any, _grad_in: Any, grad_out: tuple[Tensor, ...]) -> None:
+        def _bwd(_mod: Any, _grad_in: Any, grad_out: Any) -> None:
+            # grad_out is tuple[Tensor, ...] in practice, but the typed hook
+            # signature in torch's stubs allows tuple[Tensor, ...] | Tensor.
             self._gradients = grad_out[0].detach()
 
         self._handles = [
@@ -100,7 +102,7 @@ class GradCAMExplainer(Explainer):
 
         # Forward + backward so hooks fire
         logit: Tensor = self._model(tensor)
-        logit.backward()
+        logit.backward()  # type: ignore[no-untyped-call]
 
         if self._activations is None or self._gradients is None:
             raise RuntimeError(
@@ -110,12 +112,12 @@ class GradCAMExplainer(Explainer):
 
         # Global average pool the gradients → channel weights
         weights = self._gradients.mean(dim=(2, 3), keepdim=True)  # (1, C', 1, 1)
-        cam = (weights * self._activations).sum(dim=1).squeeze(0)  # (H', W')
-        cam = torch.clamp(cam, min=0).cpu().numpy()
+        cam_t = (weights * self._activations).sum(dim=1).squeeze(0)  # (H', W')
+        cam_arr: np.ndarray = torch.clamp(cam_t, min=0).cpu().numpy()
 
         # Upsample to input spatial dimensions
         h_in, w_in = image.shape[-2], image.shape[-1]
-        cam_img = Image.fromarray(cam).resize((w_in, h_in), Image.BILINEAR)
+        cam_img = Image.fromarray(cam_arr).resize((w_in, h_in), Image.Resampling.BILINEAR)
         cam_out = np.asarray(cam_img, dtype=np.float32)
 
         lo, hi = cam_out.min(), cam_out.max()

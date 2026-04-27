@@ -81,7 +81,7 @@ def _update_db(engine: Any, inference_result_id: str, status: str, **kwargs: Any
 # ---------------------------------------------------------------------------
 
 
-@celery_app.task(bind=True, name="mida.run_inference")
+@celery_app.task(bind=True, name="mida.run_inference")  # type: ignore[untyped-decorator]
 def run_inference(
     self: Task,
     study_id: str,

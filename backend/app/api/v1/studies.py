@@ -19,7 +19,7 @@ def list_studies(
     limit: int = Query(100, ge=1, le=500),
     offset: int = Query(0, ge=0),
 ) -> list[StudyPublic]:
-    svc = StudyService(db, storage)  # type: ignore[arg-type]
+    svc = StudyService(db, storage)
     return [StudyPublic.from_db(s) for s in svc.list(limit=limit, offset=offset)]
 
 
@@ -33,7 +33,7 @@ def upload_study(
     if not raw:
         raise HTTPException(status_code=422, detail="Uploaded file is empty.")
     try:
-        svc = StudyService(db, storage)  # type: ignore[arg-type]
+        svc = StudyService(db, storage)
         study = svc.upload(raw, file.filename or "upload.bin")
     except Exception as exc:
         raise HTTPException(status_code=422, detail=f"Failed to parse file: {exc}") from exc
@@ -42,7 +42,7 @@ def upload_study(
 
 @router.get("/{study_id}", response_model=StudyPublic)
 def get_study(study_id: uuid.UUID, db: SessionDep, storage: StorageDep) -> StudyPublic:
-    svc = StudyService(db, storage)  # type: ignore[arg-type]
+    svc = StudyService(db, storage)
     study = svc.get(study_id)
     if study is None:
         raise HTTPException(status_code=404, detail="Study not found.")
@@ -51,7 +51,7 @@ def get_study(study_id: uuid.UUID, db: SessionDep, storage: StorageDep) -> Study
 
 @router.get("/{study_id}/image")
 def get_study_image(study_id: uuid.UUID, db: SessionDep, storage: StorageDep) -> Response:
-    svc = StudyService(db, storage)  # type: ignore[arg-type]
+    svc = StudyService(db, storage)
     study = svc.get(study_id)
     if study is None:
         raise HTTPException(status_code=404, detail="Study not found.")

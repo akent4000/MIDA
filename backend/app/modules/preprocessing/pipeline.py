@@ -108,7 +108,7 @@ class PreprocessingPipeline:
     @staticmethod
     def _resize(arr: np.ndarray, h: int, w: int) -> np.ndarray:
         img = Image.fromarray(np.clip(arr * 255, 0, 255).astype(np.uint8), mode="L")
-        img = img.resize((w, h), Image.BILINEAR)
+        img = img.resize((w, h), Image.Resampling.BILINEAR)
         return np.asarray(img, dtype=np.float32) / 255.0
 
 

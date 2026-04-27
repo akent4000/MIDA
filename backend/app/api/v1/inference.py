@@ -33,7 +33,7 @@ def submit_inference(
     storage: StorageDep,
     registry: RegistryDep,
 ) -> InferenceSubmitResponse:
-    svc = StudyService(db, storage)  # type: ignore[arg-type]
+    svc = StudyService(db, storage)
     study = svc.get(study_id)
     if study is None:
         raise HTTPException(status_code=404, detail="Study not found.")
@@ -97,7 +97,7 @@ def get_explanation(
             detail="No Grad-CAM available for this result.",
         )
     try:
-        png = storage.download(ir.gradcam_key)  # type: ignore[union-attr]
+        png = storage.download(ir.gradcam_key)
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Could not load heatmap: {exc}") from exc
     return Response(content=png, media_type="image/png")
