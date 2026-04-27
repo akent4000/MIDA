@@ -9,7 +9,12 @@ name: Deploy Model to Prod
 #   SSH_PRIVATE_KEY   — deploy key for the prod server
 #   SSH_HOST_KEY      — output of `ssh-keyscan <host>` for known_hosts
 #   PROD_HOST         — e.g. mida.akent.site
+#   PROD_SSH_PORT     — non-default SSH port on the prod server
 #   PROD_USER         — e.g. mida-deploy
+#   PROD_DEPLOY_PATH  — directory where the repo is checked out on prod
+#                       (compose lives at $PROD_DEPLOY_PATH/infra). Default:
+#                       /opt/MIDA. Override per-environment without editing
+#                       the workflow.
 #   MINIO_ENDPOINT    — https://s3.mida.akent.site
 #   MINIO_ACCESS_KEY
 #   MINIO_SECRET_KEY
@@ -37,6 +42,9 @@ jobs:
       SINGLE_CKPT_KEY: ${{ inputs.single_ckpt_key || 'weights/finetune_rsna_densenet121_384_20260424_083946/best.pt' }}
       ENSEMBLE_PREFIX: ${{ inputs.ensemble_prefix || 'weights/cv_rsna_densenet121_384_fold' }}
       WORK_DIR: /tmp/mida-deploy
+      # Server-side checkout root. Falls back to /opt/MIDA when the secret is
+      # unset so the workflow still works in fresh repos with default layout.
+      PROD_DEPLOY_PATH: ${{ secrets.PROD_DEPLOY_PATH || '/opt/MIDA' }}
 
     steps:
       - uses: actions/checkout@v5
@@ -131,6 +139,10 @@ jobs:
           EOF
           chmod 600 ~/.ssh/config
 
+      - name: Ensure server-side models directory exists
+        run: |
+          ssh prod "mkdir -p '${PROD_DEPLOY_PATH}/infra/models'"
+
       - name: Upload models to prod
         run: |
           # Prefer INT8 on prod; fall back to FP32 if quantize was skipped.
@@ -140,8 +152,11 @@ jobs:
           else
               models=("$WORK_DIR/onnx/"*.onnx)
           fi
-          rsync -av --delete "${models[@]}" prod:/srv/mida/models/
+          # Compose mounts ./models relative to the compose file (infra/), so
+          # models live at $PROD_DEPLOY_PATH/infra/models/.
+          rsync -av --delete "${models[@]}" "prod:${PROD_DEPLOY_PATH}/infra/models/"
 
       - name: Restart Celery worker on prod
         run: |
-          ssh prod "cd /srv/mida && docker compose --env-file .env.prod -f docker-compose.prod.yml restart worker backend"
+          ssh prod "cd '${PROD_DEPLOY_PATH}/infra' && \
+            docker compose --env-file .env.prod -f docker-compose.prod.yml restart worker backend"
