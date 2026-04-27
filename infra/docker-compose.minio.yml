@@ -7,7 +7,7 @@ services:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?required — set in .env}
       # tells the console where it's publicly reachable (needed behind reverse proxy)
-      MINIO_BROWSER_REDIRECT_URL: https://mida.akent.site
+      MINIO_BROWSER_REDIRECT_URL: https://minio.mida.akent.site
       MINIO_SERVER_URL: https://s3.mida.akent.site
     volumes:
       - minio_data:/data
