@@ -32,6 +32,7 @@ from onnxruntime.quantization import (
     QuantType,
     quantize_static,
 )
+from onnxruntime.quantization.shape_inference import quant_pre_process
 
 from backend.app.modules.dicom.service import DicomService
 from backend.app.modules.preprocessing.pipeline import PreprocessingPipeline
@@ -106,13 +107,19 @@ def quantize(
     # Look up the input name from the FP32 model so we don't hard-code "input".
     import onnx
 
-    fp32 = onnx.load(str(fp32_path))
+    pre_path = int8_path.with_suffix(".pre.onnx")
+    # skip_symbolic_shape: DenseNet's dense-concat graph has dynamic shapes that
+    # SymbolicShapeInference can't resolve at opset 18; static ONNX shape inference
+    # and graph optimization still run and are sufficient for correct quantization.
+    quant_pre_process(str(fp32_path), str(pre_path), skip_symbolic_shape=True)
+
+    fp32 = onnx.load(str(pre_path))
     input_name = fp32.graph.input[0].name
 
     reader = _RsnaCalibrationReader(sample_paths, cfg, input_name=input_name)
 
     quantize_static(
-        model_input=str(fp32_path),
+        model_input=str(pre_path),
         model_output=str(int8_path),
         calibration_data_reader=reader,
         quant_format=QuantFormat.QDQ,
@@ -121,6 +128,8 @@ def quantize(
         activation_type=QuantType.QUInt8,
         calibrate_method=CalibrationMethod.MinMax,
     )
+
+    pre_path.unlink(missing_ok=True)
 
     fp32_size = fp32_path.stat().st_size
     int8_size = int8_path.stat().st_size

@@ -14,8 +14,10 @@ from unittest.mock import MagicMock, patch
 import pytest
 from minio.error import S3Error
 
-from backend.app.modules.model_store.service import ModelStoreService, WeightNotFoundError
-
+from backend.app.modules.model_store.service import (
+    ModelStoreService,
+    WeightNotFoundError,
+)
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -86,9 +88,8 @@ class TestResolve:
             host_id="h",
             response=MagicMock(),
         )
-        with patch.object(store._client, "fget_object", side_effect=err):
-            with pytest.raises(WeightNotFoundError, match="not found"):
-                store.resolve("onnx/missing.onnx")
+        with patch.object(store._client, "fget_object", side_effect=err), pytest.raises(WeightNotFoundError, match="not found"):
+            store.resolve("onnx/missing.onnx")
 
     def test_partial_file_cleaned_up_on_error(self, tmp_path: Path) -> None:
         store = _make_store(tmp_path)
@@ -98,9 +99,8 @@ class TestResolve:
             Path(dest).write_bytes(b"partial")
             raise RuntimeError("network error")
 
-        with patch.object(store._client, "fget_object", side_effect=_fail):
-            with pytest.raises(RuntimeError, match="network error"):
-                store.resolve("onnx/bad.onnx")
+        with patch.object(store._client, "fget_object", side_effect=_fail), pytest.raises(RuntimeError, match="network error"):
+            store.resolve("onnx/bad.onnx")
 
         assert not tmp_file.exists()
 

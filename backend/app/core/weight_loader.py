@@ -25,7 +25,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-def build_model_store(settings: "Settings") -> "ModelStoreService":
+def build_model_store(settings: Settings) -> ModelStoreService:
     from backend.app.modules.model_store.service import ModelStoreService
 
     return ModelStoreService(
@@ -38,7 +38,7 @@ def build_model_store(settings: "Settings") -> "ModelStoreService":
     )
 
 
-def resolve_weights(settings: "Settings", model_store: "ModelStoreService") -> Path | None:
+def resolve_weights(settings: Settings, model_store: ModelStoreService) -> Path | None:
     """Download / locate single-model weights and set up ensemble paths.
 
     Side-effect: sets os.environ["PNEUMONIA_ENSEMBLE_PATHS"] when ensemble
