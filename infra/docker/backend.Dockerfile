@@ -43,6 +43,10 @@ RUN python -c "import backend.app.modules.inference; import sys; \
     assert 'torch' not in sys.modules, 'torch leaked into the prod image'; \
     print('prod inference import OK, no torch')"
 
+# Named volume weights_cache is mounted here; mkdir pre-sets ownership so
+# Docker copies mida:mida into the volume on first creation.
+RUN mkdir -p /tmp/mida-weights && chown mida:mida /tmp/mida-weights
+
 USER mida
 EXPOSE 8000
 CMD ["uvicorn", "backend.app.main:app", "--host", "0.0.0.0", "--port", "8000"]
