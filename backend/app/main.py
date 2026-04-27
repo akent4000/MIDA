@@ -13,12 +13,12 @@ from __future__ import annotations
 
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
-from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from backend.app.core.config import get_settings
+from backend.app.core.weight_loader import build_model_store, resolve_weights
 from backend.app.modules.ml_tools.registry import build_registry
 from backend.app.modules.storage.service import StorageService
 
@@ -27,7 +27,7 @@ from backend.app.modules.storage.service import StorageService
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     settings = get_settings()
 
-    # Storage
+    # Studies storage (DICOM uploads)
     try:
         app.state.storage = StorageService(
             endpoint=settings.MINIO_ENDPOINT,
@@ -40,12 +40,20 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         # MinIO not available — tests override app.state.storage directly
         app.state.storage = None
 
+    # Model store (weight artefacts)
+    try:
+        model_store = build_model_store(settings)
+        app.state.model_store = model_store
+    except Exception:
+        app.state.model_store = None
+        model_store = None
+
     # Registry
     registry = build_registry()
-    if settings.PNEUMONIA_WEIGHTS_PATH:
-        weights = Path(settings.PNEUMONIA_WEIGHTS_PATH)
-        if weights.exists():
-            registry.load("pneumonia_classifier_v1", weights)
+    if model_store is not None:
+        weights_path = resolve_weights(settings, model_store)
+        if weights_path is not None:
+            registry.load("pneumonia_classifier_v1", weights_path)
     app.state.registry = registry
 
     yield

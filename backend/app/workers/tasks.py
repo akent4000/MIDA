@@ -11,7 +11,6 @@ import io
 import json
 import uuid
 from datetime import UTC, datetime
-from pathlib import Path
 from typing import Any
 
 from celery import Task
@@ -29,14 +28,17 @@ def _get_registry() -> Any:
     global _registry
     if _registry is None:
         from backend.app.core.config import get_settings
+        from backend.app.core.weight_loader import build_model_store, resolve_weights
         from backend.app.modules.ml_tools.registry import build_registry
 
         settings = get_settings()
         _registry = build_registry()
-        if settings.PNEUMONIA_WEIGHTS_PATH:
-            weights = Path(settings.PNEUMONIA_WEIGHTS_PATH)
-            if weights.exists():
-                _registry.load("pneumonia_classifier_v1", weights)
+
+        model_store = build_model_store(settings)
+        weights_path = resolve_weights(settings, model_store)
+        if weights_path is not None:
+            _registry.load("pneumonia_classifier_v1", weights_path)
+
     return _registry
 
 

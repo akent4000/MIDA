@@ -90,8 +90,8 @@ services:
       redis:
         condition: service_healthy
     volumes:
-      # Models are scp'd here by the deploy-model.yml workflow.
-      - ./models:/srv/models:ro
+      # Weights are downloaded from MinIO on first use and cached here.
+      - weights_cache:/tmp/mida-weights
     mem_limit: 4g  # 5 INT8 ONNX sessions for ensemble mode + working memory
     cpus: 2.0
     # i3-4030U: 2 physical cores. Solo pool + concurrency=1 is the only
@@ -112,6 +112,7 @@ services:
 volumes:
   postgres_data:
   redis_data:
+  weights_cache:  # ONNX weights downloaded from MinIO — persists across restarts
 
 networks:
   mida-net:
