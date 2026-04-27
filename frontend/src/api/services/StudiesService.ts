@@ -9,6 +9,30 @@ import { OpenAPI } from '../core/OpenAPI';
 import { request as __request } from '../core/request';
 export class StudiesService {
     /**
+     * List Studies
+     * @returns StudyPublic Successful Response
+     * @throws ApiError
+     */
+    public static listStudiesApiV1StudiesGet({
+        limit = 100,
+        offset,
+    }: {
+        limit?: number,
+        offset?: number,
+    }): CancelablePromise<Array<StudyPublic>> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/api/v1/studies',
+            query: {
+                'limit': limit,
+                'offset': offset,
+            },
+            errors: {
+                422: `Validation Error`,
+            },
+        });
+    }
+    /**
      * Upload Study
      * @returns StudyPublic Successful Response
      * @throws ApiError

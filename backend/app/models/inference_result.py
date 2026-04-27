@@ -24,11 +24,11 @@ class InferenceResult(InferenceResultBase, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     study_id: uuid.UUID = Field(foreign_key="studies.id")
     task_id: str
-    result_json: Optional[str] = Field(default=None)
-    gradcam_key: Optional[str] = Field(default=None)
-    error_message: Optional[str] = Field(default=None)
+    result_json: str | None = Field(default=None)
+    gradcam_key: str | None = Field(default=None)
+    error_message: str | None = Field(default=None)
     created_at: datetime = Field(default_factory=_utcnow)
-    completed_at: Optional[datetime] = Field(default=None)
+    completed_at: datetime | None = Field(default=None)
 
     study: Optional["Study"] = Relationship(back_populates="results")
 
@@ -39,11 +39,11 @@ class InferenceResultPublic(SQLModel):
     tool_id: str
     task_id: str
     status: str
-    result: Optional[dict[str, Any]] = None
-    gradcam_key: Optional[str] = None
-    error_message: Optional[str] = None
+    result: dict[str, Any] | None = None
+    gradcam_key: str | None = None
+    error_message: str | None = None
     created_at: datetime
-    completed_at: Optional[datetime] = None
+    completed_at: datetime | None = None
 
     @classmethod
     def from_db(cls, ir: "InferenceResult") -> "InferenceResultPublic":

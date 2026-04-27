@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from typing import Any
-
 from fastapi import APIRouter
 from pydantic import BaseModel
 
@@ -27,11 +25,12 @@ def list_models(registry: RegistryDep) -> list[ModelListItem]:
     items: list[ModelListItem] = []
     for tool_id in registry.list_available():
         loaded = registry.is_loaded(tool_id)
-        if loaded:
-            info = registry.get(tool_id).info
-        else:
-            # Instantiate without weights just to read static metadata
-            info = registry._classes[tool_id]().info  # type: ignore[attr-defined]
+        # Instantiate without weights to read static metadata when not loaded
+        info = (
+            registry.get(tool_id).info
+            if loaded
+            else registry._classes[tool_id]().info  # type: ignore[attr-defined]
+        )
         items.append(
             ModelListItem(
                 tool_id=tool_id,

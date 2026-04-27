@@ -7,7 +7,7 @@ import uuid
 
 import numpy as np
 from PIL import Image
-from sqlmodel import Session
+from sqlmodel import Session, select
 
 from backend.app.models.study import Study
 from backend.app.modules.dicom.service import DicomService
@@ -51,6 +51,12 @@ class StudyService:
 
     def get(self, study_id: uuid.UUID) -> Study | None:
         return self._db.get(Study, study_id)
+
+    def list(self, limit: int = 100, offset: int = 0) -> list[Study]:
+        stmt = (
+            select(Study).order_by(Study.created_at.desc()).limit(limit).offset(offset)  # type: ignore[attr-defined]
+        )
+        return list(self._db.exec(stmt).all())
 
     def get_preview_png(self, study: Study) -> bytes:
         raw = self._storage.download(study.file_key)

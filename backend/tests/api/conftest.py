@@ -7,8 +7,7 @@ Celery tasks are mocked with patch so no broker is needed.
 from __future__ import annotations
 
 import io
-import uuid
-from typing import Generator
+from collections.abc import Generator
 
 import numpy as np
 import pytest

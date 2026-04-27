@@ -1,7 +1,7 @@
 import json
 import uuid
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING, Any, List, Optional
+from typing import TYPE_CHECKING, Any
 
 from pydantic import BaseModel
 from sqlmodel import Field, Relationship, SQLModel
@@ -28,7 +28,7 @@ class Study(StudyBase, table=True):
     metadata_json: str = Field(default="{}")
     created_at: datetime = Field(default_factory=_utcnow)
 
-    results: List["InferenceResult"] = Relationship(back_populates="study")
+    results: list["InferenceResult"] = Relationship(back_populates="study")
 
 
 class StudyPublic(BaseModel):

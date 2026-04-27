@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import uuid
 
-from fastapi import APIRouter, HTTPException, UploadFile
+from fastapi import APIRouter, HTTPException, Query, UploadFile
 from fastapi.responses import Response
 
 from backend.app.core.dependencies import SessionDep, StorageDep
@@ -10,6 +10,17 @@ from backend.app.models.study import StudyPublic
 from backend.app.services.study_service import StudyService
 
 router = APIRouter(prefix="/api/v1/studies", tags=["studies"])
+
+
+@router.get("", response_model=list[StudyPublic])
+def list_studies(
+    db: SessionDep,
+    storage: StorageDep,
+    limit: int = Query(100, ge=1, le=500),
+    offset: int = Query(0, ge=0),
+) -> list[StudyPublic]:
+    svc = StudyService(db, storage)  # type: ignore[arg-type]
+    return [StudyPublic.from_db(s) for s in svc.list(limit=limit, offset=offset)]
 
 
 @router.post("", response_model=StudyPublic, status_code=201)

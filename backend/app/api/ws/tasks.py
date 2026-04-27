@@ -10,6 +10,7 @@ immediately closed gracefully.
 
 from __future__ import annotations
 
+import contextlib
 import json
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
@@ -22,9 +23,9 @@ async def ws_task_status(websocket: WebSocket, task_id: str) -> None:
     await websocket.accept()
 
     try:
-        from backend.app.core.config import get_settings
-
         import redis.asyncio as aioredis
+
+        from backend.app.core.config import get_settings
 
         settings = get_settings()
         r = aioredis.Redis.from_url(settings.REDIS_URL)
@@ -50,7 +51,5 @@ async def ws_task_status(websocket: WebSocket, task_id: str) -> None:
         # Redis not available — close cleanly
         pass
 
-    try:
+    with contextlib.suppress(Exception):
         await websocket.close()
-    except Exception:
-        pass
