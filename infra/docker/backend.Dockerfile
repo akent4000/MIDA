@@ -25,9 +25,16 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && useradd --create-home --uid 1001 mida
 
 WORKDIR /app
+
+# ── Layer 1: dependencies (cached until pyproject.toml changes) ──────────────
 COPY pyproject.toml ./
-COPY backend ./backend
+# Stub lets pip resolve and install all deps without the real source.
+# The editable link already points to /app, so the COPY below just fills it in.
+RUN mkdir -p backend && touch backend/__init__.py
 RUN pip install -e .
+
+# ── Layer 2: application source (invalidated on every commit, but cheap) ─────
+COPY backend ./backend
 
 # Smoke check: importing the inference package must not pull torch.
 # Catches accidental top-level `import torch` in code paths that prod runs.
