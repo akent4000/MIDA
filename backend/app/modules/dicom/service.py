@@ -15,12 +15,12 @@ CLI usage (headless test):
 
 from __future__ import annotations
 
+import contextlib
 import io
 import os
 import sys
 import tempfile
 from pathlib import Path
-from typing import Union
 
 import numpy as np
 import pydicom
@@ -28,7 +28,7 @@ from pydicom.pixels import apply_voi_lut
 
 from .types import Metadata, Study
 
-Source = Union[bytes, Path, str]
+Source = bytes | Path | str
 
 # DICOM tags scrubbed on anonymisation (subset of DICOM PS 3.15 Annex E).
 _ANONYMISE_TAGS: tuple[str, ...] = (
@@ -115,10 +115,8 @@ class DicomService:
 
         px_spacing: tuple[float, float] | None = None
         if hasattr(ds, "PixelSpacing"):
-            try:
+            with contextlib.suppress(IndexError, TypeError, ValueError):
                 px_spacing = (float(ds.PixelSpacing[0]), float(ds.PixelSpacing[1]))
-            except (IndexError, TypeError, ValueError):
-                pass
 
         def _str(tag: str) -> str | None:
             val = ds.get(tag)

@@ -72,7 +72,6 @@ class TestPostprocessingClassification:
 
 class TestPostprocessingOtherTypes:
     def test_segmentation_result(self) -> None:
-        import numpy as np
 
         r = SegmentationResult(tool_id="t1", class_names=["bg", "tumour"])
         out = PostprocessingPipeline().apply(r)

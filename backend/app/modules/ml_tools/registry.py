@@ -14,7 +14,7 @@ To add a new tool: import its class in build_registry() and call register_class(
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING, Type
+from typing import TYPE_CHECKING
 
 import numpy as np
 
@@ -34,14 +34,14 @@ class ToolNotLoadedError(RuntimeError):
 
 class ToolRegistry:
     def __init__(self) -> None:
-        self._classes: dict[str, Type[MLTool]] = {}
+        self._classes: dict[str, type[MLTool]] = {}
         self._instances: dict[str, MLTool] = {}
 
     # ------------------------------------------------------------------
     # Registration
     # ------------------------------------------------------------------
 
-    def register_class(self, tool_id: str, cls: Type[MLTool]) -> None:
+    def register_class(self, tool_id: str, cls: type[MLTool]) -> None:
         """Register a tool class (no weights loaded yet)."""
         self._classes[tool_id] = cls
 

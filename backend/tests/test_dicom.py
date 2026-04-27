@@ -6,18 +6,14 @@ All tests create synthetic images in memory — no DICOM files on disk required.
 from __future__ import annotations
 
 import io
-import struct
 
 import numpy as np
 import pydicom
-import pytest
 from pydicom.dataset import Dataset, FileDataset
-from pydicom.sequence import Sequence
 from pydicom.uid import ExplicitVRLittleEndian, generate_uid
 
 from backend.app.modules.dicom.service import DicomService
 from backend.app.modules.dicom.types import Metadata, Study
-
 
 # ---------------------------------------------------------------------------
 # Synthetic DICOM builder
@@ -133,8 +129,7 @@ class TestDicomLoad:
 
 
 class TestPngLoad:
-    def test_load_png_from_path(self, tmp_path: "Path") -> None:  # noqa: F821
-        from pathlib import Path
+    def test_load_png_from_path(self, tmp_path: Path) -> None:  # noqa: F821
 
         png_bytes = _make_png_bytes()
         p = tmp_path / "test.png"
@@ -147,8 +142,7 @@ class TestPngLoad:
         assert study.pixel_data.min() >= 0.0
         assert study.pixel_data.max() <= 1.0
 
-    def test_load_png_shape(self, tmp_path: "Path") -> None:  # noqa: F821
-        from pathlib import Path
+    def test_load_png_shape(self, tmp_path: Path) -> None:  # noqa: F821
 
         png_bytes = _make_png_bytes(rows=48, cols=64)
         p = tmp_path / "img.png"
@@ -157,8 +151,7 @@ class TestPngLoad:
         study = DicomService().load(p)
         assert study.pixel_data.shape == (48, 64)
 
-    def test_metadata_rows_cols_set_for_png(self, tmp_path: "Path") -> None:  # noqa: F821
-        from pathlib import Path
+    def test_metadata_rows_cols_set_for_png(self, tmp_path: Path) -> None:  # noqa: F821
 
         p = tmp_path / "x.png"
         p.write_bytes(_make_png_bytes(rows=20, cols=30))

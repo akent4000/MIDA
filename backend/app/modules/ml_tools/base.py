@@ -15,25 +15,24 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from enum import Enum
+from enum import StrEnum
 from pathlib import Path
 from typing import Any
 
 import numpy as np
-
 
 # ---------------------------------------------------------------------------
 # Enumerations
 # ---------------------------------------------------------------------------
 
 
-class TaskType(str, Enum):
+class TaskType(StrEnum):
     CLASSIFICATION = "classification"
     SEGMENTATION = "segmentation"
     DETECTION = "detection"
 
 
-class Modality(str, Enum):
+class Modality(StrEnum):
     XRAY = "xray"
     CT = "ct"
     MRI = "mri"

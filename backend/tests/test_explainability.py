@@ -11,7 +11,6 @@ import pytest
 import torch
 import torch.nn as nn
 
-
 # ---------------------------------------------------------------------------
 # Explainer ABC
 # ---------------------------------------------------------------------------
@@ -26,7 +25,6 @@ class TestExplainerABC:
 
     def test_lazy_import_does_not_pull_gradcam(self) -> None:
         # Importing the package should not eagerly import gradcam.py
-        import importlib
         import sys
 
         # Remove any cached modules

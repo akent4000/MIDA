@@ -12,7 +12,6 @@ import pytest
 
 from backend.app.modules.preprocessing.pipeline import PreprocessingPipeline
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------

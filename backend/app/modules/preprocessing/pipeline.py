@@ -68,10 +68,7 @@ class PreprocessingPipeline:
 
         if arr.ndim == 3:
             # Collapse to (H, W) — take first channel regardless of layout
-            if arr.shape[-1] in (1, 3, 4):
-                arr = arr[..., 0]
-            else:
-                arr = arr[0]
+            arr = arr[..., 0] if arr.shape[-1] in (1, 3, 4) else arr[0]
         elif arr.ndim != 2:
             raise ValueError(f"Expected 2-D (H,W) or 3-D input, got shape {arr.shape}")
 

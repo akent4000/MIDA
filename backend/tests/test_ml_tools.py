@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from pathlib import Path
 from typing import Any
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import numpy as np
 import pytest
@@ -28,7 +28,6 @@ from backend.app.modules.ml_tools.registry import (
     ToolRegistry,
     build_registry,
 )
-
 
 # ---------------------------------------------------------------------------
 # Enumerations
@@ -271,8 +270,8 @@ class TestPneumoniaTool:
             t.predict(np.zeros((3, 384, 384), dtype=np.float32))
 
     def test_predict_with_mocked_inference(self) -> None:
-        from backend.app.modules.ml_tools.pneumonia.tool import PneumoniaTool
         from backend.app.modules.inference.base import Prediction
+        from backend.app.modules.ml_tools.pneumonia.tool import PneumoniaTool
 
         t = PneumoniaTool()
         mock_inf = MagicMock()
