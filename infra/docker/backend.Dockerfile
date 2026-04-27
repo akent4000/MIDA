@@ -34,6 +34,7 @@ RUN mkdir -p backend && touch backend/__init__.py
 RUN pip install -e .
 
 # ── Layer 2: application source (invalidated on every commit, but cheap) ─────
+COPY alembic.ini ./
 COPY backend ./backend
 
 # Smoke check: importing the inference package must not pull torch.
