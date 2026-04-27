@@ -1,0 +1,25 @@
+services:
+  minio:
+    image: minio/minio:latest
+    container_name: mida-minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?required — set in .env}
+      # tells the console where it's publicly reachable (needed behind reverse proxy)
+      MINIO_BROWSER_REDIRECT_URL: https://mida.akent.site
+      MINIO_SERVER_URL: https://s3.mida.akent.site
+    volumes:
+      - minio_data:/data
+    ports:
+      - "127.0.0.1:9000:9000"   # S3 API
+      - "127.0.0.1:9001:9001"   # Console UI
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  minio_data:
