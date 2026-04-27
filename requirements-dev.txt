@@ -1,0 +1,14 @@
+# Dev/test extras (extends requirements.txt)
+#   pip install -r requirements.txt
+#   pip install -r requirements-dev.txt
+
+-r requirements.txt
+
+ruff>=0.6
+black>=24.8
+mypy>=1.10
+pytest>=8.2
+pytest-cov>=5.0
+pre-commit>=3.7
+ipykernel>=6.29
+jupyterlab>=4.2

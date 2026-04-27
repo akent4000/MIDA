@@ -24,6 +24,38 @@ git push / scp model.onnx──►    Caddy (уже установлен ✅)
 
 ## 1. Концепция архитектуры
 
+### 1.0. Расширяемость: реестр ML-инструментов
+
+MIRA спроектирована как **платформа** с подключаемыми ML-инструментами, а не как приложение под одну задачу. Первый инструмент — пневмония по рентгенограммам (RSNA). В будущем планируется добавить:
+
+| Инструмент | Модальность | Задача |
+|---|---|---|
+| Пневмония (RSNA) ✅ | Chest X-Ray | Бинарная классификация |
+| Опухоли мозга (BraTS) | МРТ | Сегментация |
+| Дерматоскопия (ISIC) | Дерматоскопия | Классификация |
+| Диабетическая ретинопатия | Фундус | Классификация |
+| Патология лёгких (NIH) | Chest X-Ray | Многоклассовая классификация |
+
+Для добавления нового инструмента достаточно **трёх шагов**:
+1. Создать подкласс `MLTool` в `backend/app/modules/ml_tools/<tool_name>/tool.py`.
+2. Реализовать `info`, `load`, `predict`, `get_preprocessing_config`.
+3. Вызвать `registry.register_class(MyTool.TOOL_ID, MyTool)` в `build_registry()`.
+
+API, DICOM-парсинг, пре- и постпроцессинг при этом **не изменяются**.
+
+```
+backend/app/modules/ml_tools/
+├── base.py              # MLTool ABC + ToolResult иерархия (Classification/Segmentation/Detection)
+├── registry.py          # ToolRegistry — регистрация, загрузка весов, диспетчеризация
+├── __init__.py
+├── pneumonia/           # Инструмент 1: RSNA Pneumonia Classifier ✅
+│   └── tool.py
+├── brain_tumor/         # Инструмент 2 (будущий): BraTS Segmentation
+│   └── tool.py
+└── dermoscopy/          # Инструмент 3 (будущий): ISIC Classification
+    └── tool.py
+```
+
 ### 1.1. Принципы
 
 **Headless** означает, что ядро системы (бэкенд + ML) полностью отделено от представления. Взаимодействие только через HTTP/REST API. Это даёт:
@@ -299,15 +331,27 @@ class OnnxInference(ModelInference):
 
 **Результат:** обученная модель с документированными метриками и артефакт с весами.
 
-### Фаза 2: Backend-ядро (2 недели)
+### Фаза 2: Backend-ядро (2 недели) — **В РАБОТЕ**
 
-- Реализация модулей DICOM, Preprocessing, Inference, Postprocessing
-- Unit-тесты для каждого модуля (pytest)
-- Интеграционные тесты пайплайна
-- CLI-утилита для запуска инференса из командной строки — проверка, что ядро действительно headless
-- Настройка логирования (structlog)
+Архитектура ядра строится вокруг **реестра ML-инструментов** (см. §1.0), что позволяет добавлять новые клинические задачи без изменения остальных слоёв.
 
-**Результат:** работающее ядро, протестированное без API.
+Реализованные модули (`backend/app/modules/`):
+
+| Модуль | Путь | Статус |
+|---|---|---|
+| ML Tools Registry | `ml_tools/` | ✅ готов |
+| DICOM Service | `dicom/` | ✅ готов |
+| Preprocessing Pipeline | `preprocessing/` | ✅ готов |
+| Postprocessing Pipeline | `postprocessing/` | ✅ готов |
+| Explainability (Grad-CAM) | `explainability/` | ✅ готов |
+| Inference ABC + backends | `inference/` | ✅ (Phase 1) |
+
+Пендинг:
+- Интеграционный тест полного пайплайна (DICOM → preprocess → predict → postprocess → explain)
+- CLI-утилита `python -m backend.app.cli` для headless smoke-теста
+- Настройка structlog
+
+**Результат:** работающее ядро, тестируемое без FastAPI.
 
 ### Фаза 3: REST API (1–2 недели)
 
@@ -341,7 +385,11 @@ class OnnxInference(ModelInference):
 - `docker-compose.dev.yml` — десктоп, с секцией `deploy.resources` для GPU
 - `docker-compose.prod.yml` — сервер, CPU-only, лимиты памяти на контейнеры
 - Настройка Caddy на сервере для проксирования FastAPI и отдачи фронтенда (Caddy уже установлен ✅)
-- GitHub Actions: линтеры, тесты, сборка образов, автодеплой `model.onnx` на сервер по `git tag`
+- GitHub Actions — три workflow:
+  - **`ci.yml`** ✅ (готово) — на каждый push/PR в main: `ruff` → `mypy` → `pytest --cov`; torch устанавливается CPU-only (`whl/cpu`) отдельно от `pyproject.toml`
+  - **`build.yml`** — на push в main после CI: сборка multi-stage Docker-образов backend + frontend, push в GHCR (`ghcr.io/<org>/mira-backend`, `mira-frontend`)
+  - **`deploy-model.yml`** — на `git tag v*`: скачать `.pt` из MinIO → экспорт ONNX → INT8-квантизация → `scp model.onnx` на prod-сервер → SSH-перезапуск Celery-воркера
+- Секреты GitHub Actions (Settings → Secrets → Actions): `SSH_PRIVATE_KEY`, `PROD_HOST`, `PROD_USER`, `MINIO_ENDPOINT`, `MINIO_ACCESS_KEY`, `MINIO_SECRET_KEY`
 - Настройка Celery с `--concurrency=1 --pool=solo` под i3-4030U
 
 **Результат:** приложение разворачивается одной командой `docker-compose up`.

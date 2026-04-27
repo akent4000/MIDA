@@ -23,6 +23,7 @@ dependencies = [
     "tqdm>=4.66",
     "kaggle>=1.6",
     "pyyaml>=6.0",
+    "structlog>=24.0",
 ]
 
 [project.optional-dependencies]
