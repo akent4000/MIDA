@@ -5,7 +5,7 @@ from backend.app.core.config import get_settings
 _settings = get_settings()
 
 celery_app = Celery(
-    "mira",
+    "mida",
     broker=_settings.REDIS_URL,
     backend=_settings.REDIS_URL,
     include=["backend.app.workers.tasks"],

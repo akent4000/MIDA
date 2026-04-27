@@ -1,0 +1,37 @@
+# Files excluded from all Docker build contexts (root context).
+# Keeps the build context small and reproducible.
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Virtualenvs
+.venv/
+venv/
+
+# Node / Vite
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+
+# Editor / OS
+.vscode/
+.idea/
+*.swp
+.DS_Store
+
+# Local data — these never belong in an image
+backend/ml/data/
+backend/ml/weights/
+backend/ml/wandb/
+
+# Repo metadata
+.git/
+.github/
+*.md
+!README.md

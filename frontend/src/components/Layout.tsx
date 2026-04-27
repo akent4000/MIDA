@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 const navItems = [
   { to: "/", label: "Загрузка", end: true },
   { to: "/history", label: "История" },
+  { to: "/settings", label: "Настройки" },
 ];
 
 export function Layout() {
@@ -13,7 +14,7 @@ export function Layout() {
         <div className="container flex h-14 items-center justify-between">
           <NavLink to="/" className="flex items-center gap-2 font-semibold">
             <span className="inline-block h-6 w-6 rounded bg-primary" aria-hidden />
-            <span>MIRA</span>
+            <span>MIDA</span>
             <span className="text-xs font-normal text-muted-foreground">
               Medical Imaging Recognition Assistant
             </span>

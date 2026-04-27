@@ -1,4 +1,4 @@
-# План разработки: MIRA — Medical Imaging Recognition Assistant
+# План разработки: MIDA — Medical Imaging Recognition Assistant
 
 **Архитектура:** Headless, модульная, API-first
 **Предмет:** Получение, обработка и анализ медицинских изображений
@@ -26,7 +26,7 @@ git push / scp model.onnx──►    Caddy (уже установлен ✅)
 
 ### 1.0. Расширяемость: реестр ML-инструментов
 
-MIRA спроектирована как **платформа** с подключаемыми ML-инструментами, а не как приложение под одну задачу. Первый инструмент — пневмония по рентгенограммам (RSNA). В будущем планируется добавить:
+MIDA спроектирована как **платформа** с подключаемыми ML-инструментами, а не как приложение под одну задачу. Первый инструмент — пневмония по рентгенограммам (RSNA). В будущем планируется добавить:
 
 | Инструмент | Модальность | Задача |
 |---|---|---|
@@ -387,7 +387,7 @@ class OnnxInference(ModelInference):
 - Настройка Caddy на сервере для проксирования FastAPI и отдачи фронтенда (Caddy уже установлен ✅)
 - GitHub Actions — три workflow:
   - **`ci.yml`** ✅ (готово) — на каждый push/PR в main: `ruff` → `mypy` → `pytest --cov`; torch устанавливается CPU-only (`whl/cpu`) отдельно от `pyproject.toml`
-  - **`build.yml`** — на push в main после CI: сборка multi-stage Docker-образов backend + frontend, push в GHCR (`ghcr.io/<org>/mira-backend`, `mira-frontend`)
+  - **`build.yml`** — на push в main после CI: сборка multi-stage Docker-образов backend + frontend, push в GHCR (`ghcr.io/<org>/mida-backend`, `mida-frontend`)
   - **`deploy-model.yml`** — на `git tag v*`: скачать `.pt` из MinIO → экспорт ONNX → INT8-квантизация → `scp model.onnx` на prod-сервер → SSH-перезапуск Celery-воркера
 - Секреты GitHub Actions (Settings → Secrets → Actions): `SSH_PRIVATE_KEY`, `PROD_HOST`, `PROD_USER`, `MINIO_ENDPOINT`, `MINIO_ACCESS_KEY`, `MINIO_SECRET_KEY`
 - Настройка Celery с `--concurrency=1 --pool=solo` под i3-4030U

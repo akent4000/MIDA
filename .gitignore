@@ -44,6 +44,7 @@ frontend/.vite/
 
 # Docker
 infra/.env
+infra/.env.prod
 infra/*.env.local
 
 # Database / Storage

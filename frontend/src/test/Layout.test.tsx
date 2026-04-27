@@ -14,7 +14,7 @@ describe("Layout", () => {
         </Routes>
       </MemoryRouter>,
     );
-    expect(screen.getByText("MIRA")).toBeInTheDocument();
+    expect(screen.getByText("MIDA")).toBeInTheDocument();
     expect(screen.getByText(/исследовательский прототип/i)).toBeInTheDocument();
     expect(screen.getByText("home")).toBeInTheDocument();
   });

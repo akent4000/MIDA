@@ -1,0 +1,119 @@
+# MIDA — production stack on the i3-4030U server.
+#
+# Constraints (driven by hardware):
+#   * Worker concurrency 1 + solo pool — no fork/thread parallelism on 2-core CPU.
+#   * mem_limit set on every service so an OOM-trigger can't take down the host.
+#   * INFERENCE_BACKEND=onnx everywhere — no torch installed in this image.
+#
+# Stateful services live in this file:
+#   * postgres — application DB
+#   * redis    — Celery broker + cache
+# MinIO stays in its own compose (infra/docker-compose.minio.yml). The two stacks
+# share the external `mida-net` network so backend/worker reach MinIO by the
+# service name `mida-minio:9000` instead of the host loopback.
+#
+# Caddy runs in its own container with `network_mode: host`, so reverse-proxy
+# entries in infra/caddy/mida.caddy that target 127.0.0.1:18000 / :18080 hit
+# the host-side ports this compose publishes.
+#
+# Bring up:
+#   docker network create mida-net   # one-off, only if it doesn't exist yet
+#   docker compose -f docker-compose.minio.yml up -d
+#   docker compose --env-file .env.prod -f docker-compose.prod.yml up -d
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: mida-postgres
+    restart: unless-stopped
+    env_file:
+      - .env.prod
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    mem_limit: 512m
+    cpus: 0.5
+    networks: [mida-net]
+
+  redis:
+    image: redis:7-alpine
+    container_name: mida-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    mem_limit: 384m
+    cpus: 0.5
+    networks: [mida-net]
+
+  backend:
+    image: ghcr.io/akent4000/mida-backend:latest
+    container_name: mida-backend
+    restart: unless-stopped
+    env_file:
+      - .env.prod
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:18000:8000"
+    mem_limit: 1g
+    cpus: 1.0
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health').read()"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    command: uvicorn backend.app.main:app --host 0.0.0.0 --port 8000 --workers 1
+    networks: [mida-net]
+
+  worker:
+    image: ghcr.io/akent4000/mida-backend:latest
+    container_name: mida-worker
+    restart: unless-stopped
+    env_file:
+      - .env.prod
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      # Models are scp'd here by the deploy-model.yml workflow.
+      - ./models:/srv/models:ro
+    mem_limit: 4g  # 5 INT8 ONNX sessions for ensemble mode + working memory
+    cpus: 2.0
+    # i3-4030U: 2 physical cores. Solo pool + concurrency=1 is the only
+    # combination that doesn't thrash. Don't change this.
+    command: celery -A backend.app.workers.celery_app worker --loglevel=info --concurrency=1 --pool=solo
+    networks: [mida-net]
+
+  frontend:
+    image: ghcr.io/akent4000/mida-frontend:latest
+    container_name: mida-frontend
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:18080:80"
+    mem_limit: 128m
+    cpus: 0.5
+    networks: [mida-net]
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  mida-net:
+    name: mida-net
+    external: true

@@ -20,6 +20,13 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+    networks: [mida-net]
 
 volumes:
   minio_data:
+
+networks:
+  mida-net:
+    name: mida-net
+    external: true
+

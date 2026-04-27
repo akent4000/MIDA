@@ -5,6 +5,7 @@ import { Layout } from "@/components/Layout";
 import { UploadPage } from "@/pages/UploadPage";
 import { StudyPage } from "@/pages/StudyPage";
 import { HistoryPage } from "@/pages/HistoryPage";
+import { SettingsPage } from "@/pages/SettingsPage";
 import { NotFoundPage } from "@/pages/NotFoundPage";
 import { queryClient } from "@/lib/queryClient";
 
@@ -16,6 +17,7 @@ const router = createBrowserRouter([
       { index: true, element: <UploadPage /> },
       { path: "studies/:studyId", element: <StudyPage /> },
       { path: "history", element: <HistoryPage /> },
+      { path: "settings", element: <SettingsPage /> },
       { path: "*", element: <NotFoundPage /> },
     ],
   },

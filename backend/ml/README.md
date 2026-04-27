@@ -1,4 +1,4 @@
-# MIRA — ML workspace
+# MIDA — ML workspace
 
 This directory holds everything that runs **only on the dev box** (training,
 experiments, notebooks, model export). The production server never imports

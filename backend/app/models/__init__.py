@@ -1,4 +1,11 @@
 from backend.app.models.inference_result import InferenceResult, InferenceResultPublic
 from backend.app.models.study import Study, StudyPublic
+from backend.app.models.tool_setting import ToolSetting
 
-__all__ = ["Study", "StudyPublic", "InferenceResult", "InferenceResultPublic"]
+__all__ = [
+    "Study",
+    "StudyPublic",
+    "InferenceResult",
+    "InferenceResultPublic",
+    "ToolSetting",
+]

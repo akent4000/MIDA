@@ -276,7 +276,7 @@ class TestPneumoniaTool:
         t = PneumoniaTool()
         mock_inf = MagicMock()
         mock_inf.predict.return_value = Prediction(prob=0.82, label=1, threshold=0.44)
-        t._inference = mock_inf
+        t._single = mock_inf
         t._loaded = True
 
         result = t.predict(np.zeros((3, 384, 384), dtype=np.float32))

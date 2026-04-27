@@ -58,9 +58,7 @@ def _publish(task_id: str, data: dict[str, Any]) -> None:
         pass  # pub/sub is best-effort; don't let it break the task
 
 
-def _update_db(
-    engine: Any, inference_result_id: str, status: str, **kwargs: Any
-) -> None:
+def _update_db(engine: Any, inference_result_id: str, status: str, **kwargs: Any) -> None:
     from sqlmodel import Session
 
     from backend.app.models.inference_result import InferenceResult
@@ -83,7 +81,7 @@ def _update_db(
 # ---------------------------------------------------------------------------
 
 
-@celery_app.task(bind=True, name="mira.run_inference")
+@celery_app.task(bind=True, name="mida.run_inference")
 def run_inference(
     self: Task,
     study_id: str,
@@ -133,6 +131,13 @@ def run_inference(
         registry = _get_registry()
         tool = registry.get(tool_id)
 
+        # Apply user-configured settings before predict() so toggles made via
+        # the API take effect on the very next task without a worker restart.
+        with Session(engine) as s:
+            from backend.app.services.tool_settings_service import apply_settings_from_db
+
+            apply_settings_from_db(s, registry, tool_id)
+
         preprocessor = PreprocessingPipeline.from_config(tool.get_preprocessing_config())
         image = preprocessor.apply(loaded_study.pixel_data)
 
@@ -142,9 +147,7 @@ def run_inference(
 
         gradcam_key: str | None = None
         if settings.INFERENCE_BACKEND == "pytorch":
-            gradcam_key = _try_gradcam(
-                tool, image, storage, study_id, inference_result_id
-            )
+            gradcam_key = _try_gradcam(tool, image, storage, study_id, inference_result_id)
 
         result_dict: dict[str, Any] = {
             "interpretation": pp_result.interpretation,
@@ -157,6 +160,7 @@ def run_inference(
                 "label_name": getattr(pp_result.raw, "label_name", None),
                 "threshold": getattr(pp_result.raw, "threshold", None),
                 "class_names": getattr(pp_result.raw, "class_names", None),
+                "metadata": getattr(pp_result.raw, "metadata", {}),
             },
         }
 
@@ -183,7 +187,10 @@ def _try_gradcam(
 
         from backend.app.modules.inference.pytorch_impl import PyTorchInference
 
-        inference_backend = getattr(tool, "_inference", None)
+        # Grad-CAM is computed off the single fine-tuned model regardless of
+        # the active inference mode (ensemble/single) — visualising any one
+        # of 5 fold gradients would be misleading and slow.
+        inference_backend = getattr(tool, "_single", None)
         if not isinstance(inference_backend, PyTorchInference):
             return None
 

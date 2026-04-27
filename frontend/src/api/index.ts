@@ -15,6 +15,13 @@ export type { InferenceSubmitResponse } from './models/InferenceSubmitResponse';
 export type { ModelListItem } from './models/ModelListItem';
 export type { StudyPublic } from './models/StudyPublic';
 export type { TaskStatusResponse } from './models/TaskStatusResponse';
+export type {
+    SettingField,
+    SettingOption,
+    SettingType,
+    ToolSettingsConfig,
+    ToolSettingsPatch,
+} from './models/ToolSettingsConfig';
 export type { ValidationError } from './models/ValidationError';
 
 export { HealthService } from './services/HealthService';
@@ -22,3 +29,4 @@ export { InferenceService } from './services/InferenceService';
 export { ModelsService } from './services/ModelsService';
 export { StudiesService } from './services/StudiesService';
 export { TasksService } from './services/TasksService';
+export { ToolsService } from './services/ToolsService';

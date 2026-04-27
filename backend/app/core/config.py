@@ -9,7 +9,7 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     # Database
-    DATABASE_URL: str = "postgresql+psycopg2://mira:mira@localhost:5432/mira"
+    DATABASE_URL: str = "postgresql+psycopg2://mida:mida@localhost:5432/mida"
 
     # Redis / Celery
     REDIS_URL: str = "redis://localhost:6379/0"

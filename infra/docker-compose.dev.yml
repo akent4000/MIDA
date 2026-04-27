@@ -1,28 +1,28 @@
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: mira-dev-postgres
+    container_name: mida-dev-postgres
     environment:
-      POSTGRES_USER: mira
-      POSTGRES_PASSWORD: mira
-      POSTGRES_DB: mira
+      POSTGRES_USER: mida
+      POSTGRES_PASSWORD: mida
+      POSTGRES_DB: mida
     ports:
       - "127.0.0.1:5432:5432"
     volumes:
-      - mira_dev_pg:/var/lib/postgresql/data
+      - mida_dev_pg:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U mira -d mira"]
+      test: ["CMD-SHELL", "pg_isready -U mida -d mida"]
       interval: 5s
       timeout: 3s
       retries: 10
 
   redis:
     image: redis:7-alpine
-    container_name: mira-dev-redis
+    container_name: mida-dev-redis
     ports:
       - "127.0.0.1:6379:6379"
     volumes:
-      - mira_dev_redis:/data
+      - mida_dev_redis:/data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -31,7 +31,7 @@ services:
 
   minio:
     image: minio/minio:latest
-    container_name: mira-dev-minio
+    container_name: mida-dev-minio
     command: server /data --console-address ":9001"
     environment:
       MINIO_ROOT_USER: minioadmin
@@ -40,7 +40,7 @@ services:
       - "127.0.0.1:9000:9000"
       - "127.0.0.1:9001:9001"
     volumes:
-      - mira_dev_minio:/data
+      - mida_dev_minio:/data
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
       interval: 5s
@@ -50,7 +50,7 @@ services:
   # Creates the bucket once MinIO is up. Exits immediately after.
   minio-init:
     image: minio/mc:latest
-    container_name: mira-dev-minio-init
+    container_name: mida-dev-minio-init
     depends_on:
       minio:
         condition: service_healthy
@@ -62,7 +62,97 @@ services:
       "
     restart: "no"
 
+  # ----------------------------------------------------------------------
+  # Application services — opt-in via `--profile full` so the default
+  # `docker compose up` keeps the lightweight stateful-services-only flow
+  # (uvicorn / celery / vite run on host with --reload).
+  #
+  #   Stateful only:   docker compose -f infra/docker-compose.dev.yml up
+  #   Full stack:      docker compose -f infra/docker-compose.dev.yml --profile full up
+  # ----------------------------------------------------------------------
+
+  backend:
+    profiles: ["full"]
+    image: mida-backend:dev
+    build:
+      context: ..
+      dockerfile: infra/docker/backend.Dockerfile
+      target: dev
+    container_name: mida-dev-backend
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+      minio: { condition: service_healthy }
+    environment:
+      DATABASE_URL: postgresql+psycopg2://mida:mida@postgres:5432/mida
+      REDIS_URL: redis://redis:6379/0
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin
+      MINIO_BUCKET: mida-studies
+      MINIO_SECURE: "false"
+      INFERENCE_BACKEND: pytorch
+      PNEUMONIA_WEIGHTS_PATH: /weights/single.pt
+      PNEUMONIA_ENSEMBLE_PATHS: ""
+    volumes:
+      - ../backend:/app/backend  # bind-mount for live reload during dev
+      - ../backend/ml/weights:/weights:ro
+    ports:
+      - "127.0.0.1:8000:8000"
+    command: uvicorn backend.app.main:app --host 0.0.0.0 --port 8000 --reload
+
+  worker:
+    profiles: ["full"]
+    image: mida-backend:dev
+    build:
+      context: ..
+      dockerfile: infra/docker/backend.Dockerfile
+      target: dev
+    container_name: mida-dev-worker
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+      minio: { condition: service_healthy }
+    environment:
+      DATABASE_URL: postgresql+psycopg2://mida:mida@postgres:5432/mida
+      REDIS_URL: redis://redis:6379/0
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin
+      MINIO_BUCKET: mida-studies
+      MINIO_SECURE: "false"
+      INFERENCE_BACKEND: pytorch
+      PNEUMONIA_WEIGHTS_PATH: /weights/single.pt
+      PNEUMONIA_ENSEMBLE_PATHS: ""
+    volumes:
+      - ../backend:/app/backend
+      - ../backend/ml/weights:/weights:ro
+    # Dev box has a GPU; uncomment to expose it once nvidia-container-toolkit
+    # is configured (`pip install torch --index-url whl/cu128` is then
+    # required inside the image).
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]
+    command: celery -A backend.app.workers.celery_app worker --loglevel=info
+
+  frontend:
+    profiles: ["full"]
+    image: mida-frontend:dev
+    build:
+      context: ..
+      dockerfile: infra/docker/frontend.Dockerfile
+      args:
+        VITE_API_BASE_URL: http://localhost:8000
+    container_name: mida-dev-frontend
+    depends_on: [backend]
+    ports:
+      - "127.0.0.1:5173:80"
+
 volumes:
-  mira_dev_pg:
-  mira_dev_redis:
-  mira_dev_minio:
+  mida_dev_pg:
+  mida_dev_redis:
+  mida_dev_minio:

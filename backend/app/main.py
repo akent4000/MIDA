@@ -1,4 +1,4 @@
-"""MIRA FastAPI application.
+"""MIDA FastAPI application.
 
 Research prototype — not a medical device.
 
@@ -53,7 +53,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
 def create_app() -> FastAPI:
     app = FastAPI(
-        title="MIRA — Medical Imaging Recognition Assistant",
+        title="MIDA — Medical Imaging Recognition Assistant",
         description=(
             "Headless, API-first medical imaging analysis. "
             "**Research prototype — not a medical device.**"
@@ -70,13 +70,14 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
-    from backend.app.api.v1 import inference, models, studies, tasks
+    from backend.app.api.v1 import inference, models, studies, tasks, tool_settings
     from backend.app.api.ws import tasks as ws_tasks
 
     app.include_router(studies.router)
     app.include_router(inference.router)
     app.include_router(models.router)
     app.include_router(tasks.router)
+    app.include_router(tool_settings.router)
     app.include_router(ws_tasks.router)
 
     @app.get("/health", tags=["health"])

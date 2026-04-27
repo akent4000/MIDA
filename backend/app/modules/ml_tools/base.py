@@ -1,4 +1,4 @@
-"""Pluggable ML tool abstraction — the extensibility seam of MIRA.
+"""Pluggable ML tool abstraction — the extensibility seam of MIDA.
 
 Each clinical task (pneumonia classification, tumour segmentation, ECG analysis, …)
 is a self-contained MLTool that implements this contract.  The ToolRegistry manages
@@ -142,3 +142,24 @@ class MLTool(ABC):
     def get_gradcam_target_layer(self) -> str | None:
         """Return the PyTorch named-module path for Grad-CAM hooks, or None."""
         return None
+
+    # ------------------------------------------------------------------
+    # Runtime-tunable settings (optional — default is no settings)
+    # ------------------------------------------------------------------
+
+    def get_settings_schema(self) -> list[SettingField]:
+        """Declare runtime-tunable settings exposed to the API/UI."""
+        return []
+
+    def apply_settings(self, values: dict[str, Any]) -> None:
+        """Apply validated settings to the live tool instance.
+
+        Called by the worker before each predict() so settings changes take
+        effect without restarting the process.  Tools that override this must
+        be idempotent — applying the same values twice is a no-op.
+        """
+        return None
+
+
+# Forward-reference resolution for SettingField (avoid circular import at module top)
+from backend.app.modules.ml_tools.settings import SettingField  # noqa: E402, F401

@@ -219,24 +219,27 @@ class TestPyTorchInferenceLoad:
 
 
 # ---------------------------------------------------------------------------
-# OnnxInference stub
+# OnnxInference — basic shape, full round-trip lives in test_onnx_export.py
 # ---------------------------------------------------------------------------
 
 
 class TestOnnxInference:
-    def test_load_raises_not_implemented(self, tmp_path: Path) -> None:
+    def test_predict_before_load_raises(self) -> None:
         from backend.app.modules.inference.onnx_impl import OnnxInference
 
         inf = OnnxInference()
-        with pytest.raises(NotImplementedError):
-            inf.load(tmp_path / "model.onnx")
-
-    def test_predict_raises_not_implemented(self) -> None:
-        from backend.app.modules.inference.onnx_impl import OnnxInference
-
-        inf = OnnxInference()
-        with pytest.raises(NotImplementedError):
+        with pytest.raises(RuntimeError, match="not loaded"):
             inf.predict(np.zeros((3, 224, 224), dtype=np.float32))
+
+    def test_load_missing_file_raises(self, tmp_path: Path) -> None:
+        from backend.app.modules.inference.onnx_impl import OnnxInference
+
+        inf = OnnxInference()
+        import onnxruntime
+
+        # ort raises NoSuchFile (subclass of Fail / RuntimeError) for missing files
+        with pytest.raises(onnxruntime.capi.onnxruntime_pybind11_state.NoSuchFile):
+            inf.load(tmp_path / "does_not_exist.onnx")
 
 
 # ---------------------------------------------------------------------------

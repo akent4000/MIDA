@@ -1,3 +1,23 @@
+# Frontend SPA
+app.mida.akent.site {
+    reverse_proxy 127.0.0.1:18080 {
+        header_up Host {host}
+        header_up X-Real-IP {remote_host}
+        header_up X-Forwarded-For {remote_host}
+        header_up X-Forwarded-Proto {scheme}
+    }
+}
+
+# FastAPI (REST + WebSocket /ws/*) — Caddy 2 auto-detects WS upgrades
+api.mida.akent.site {
+    reverse_proxy 127.0.0.1:18000 {
+        header_up Host {host}
+        header_up X-Real-IP {remote_host}
+        header_up X-Forwarded-For {remote_host}
+        header_up X-Forwarded-Proto {scheme}
+    }
+}
+
 # MinIO Console — web UI for browsing/uploading model weights
 minio.mida.akent.site {
     reverse_proxy 127.0.0.1:9001 {
