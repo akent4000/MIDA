@@ -1,0 +1,55 @@
+# RSNA Pneumonia fine-tune — DenseNet-121 with NIH ChestX-ray14 backbone.
+#
+# Set backbone_checkpoint to the backbone.pt produced by pretrain_nih.py:
+#   model.backbone_checkpoint: backend/ml/weights/<pretrain_run>/backbone.pt
+#
+# Key differences vs ResNet50 baseline:
+#   - DenseNet-121 backbone pretrained on NIH (domain knowledge)
+#   - 384px input (all top-5 teams used 256-512px)
+#   - CLAHE applied via build_transforms (already in datasets.py)
+#   - Lower lr (fine-tuning pretrained backbone, not training from scratch)
+#   - Higher weight_decay (learned from ResNet50 overfit at epoch 4)
+
+run_name: finetune_rsna_densenet121_384
+seed: 42
+
+model:
+  arch: densenet121
+  weights: null                # backbone_checkpoint overrides ImageNet init
+  num_classes: 1               # binary: pneumonia yes/no
+  # From pretrain run 2026-04-24 (epoch 5 best, val_mean_auc=0.8287)
+  backbone_checkpoint: backend/ml/weights/pretrain_nih_densenet121_20260424_021503/backbone.pt
+
+data:
+  splits_path: backend/ml/configs/splits_rsna_v1.json
+  image_dir: backend/ml/data/rsna/stage_2_train_images
+  labels_csv: backend/ml/data/rsna/stage_2_train_labels.csv
+  image_size: 384
+  batch_size: 32              # 384px × batch 32 ≈ 4.7 GB VRAM (safe for 12 GB)
+  num_workers: 8
+  prefetch_factor: 4
+  pin_memory: true
+
+optim:
+  name: adamw
+  # Fine-tuning: use 10× lower lr than pretrain to avoid destroying NIH features.
+  lr: 1.0e-5
+  weight_decay: 5.0e-4        # stronger L2 vs ResNet50 run (was 1e-4, overfit at ep4)
+  scheduler: cosine
+  warmup_epochs: 2
+
+train:
+  epochs: 30
+  amp: true
+  grad_clip: 1.0
+  early_stop_patience: 7      # give more patience (fine-tuning can be slower to converge)
+  early_stop_metric: val_auc
+  log_every_steps: 50
+
+loss:
+  name: bce_with_logits
+  pos_weight: auto
+
+output:
+  run_dir: backend/ml/runs
+  weights_dir: backend/ml/weights

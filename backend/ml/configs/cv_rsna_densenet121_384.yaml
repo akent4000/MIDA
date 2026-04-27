@@ -1,0 +1,52 @@
+# 5-fold CV config for the final DenseNet-121 + NIH ensemble.
+#
+# Differences from finetune_rsna_densenet121_384.yaml (single split):
+#   - epochs 15 (was 30)                     — single-split run plateaued at epoch 4-5
+#   - early_stop_patience 3 (was 7)          — fail fast, we're running 5 of these
+#   - cosine schedule recalculated for 15 ep
+#
+# Expected runtime: 5 folds × ~6 epochs × 36 min = ~18 hours. Run overnight.
+# If time is short, use --folds 3 on the CLI (still gives meaningful ensemble).
+
+run_name: cv_rsna_densenet121_384
+seed: 42
+
+model:
+  arch: densenet121
+  weights: null
+  num_classes: 1
+  # From pretrain run 2026-04-24 (epoch 5 best, val_mean_auc=0.8287)
+  backbone_checkpoint: backend/ml/weights/pretrain_nih_densenet121_20260424_021503/backbone.pt
+
+data:
+  splits_path: backend/ml/configs/splits_rsna_v1.json
+  image_dir: backend/ml/data/rsna/stage_2_train_images
+  labels_csv: backend/ml/data/rsna/stage_2_train_labels.csv
+  image_size: 384
+  batch_size: 32
+  num_workers: 8
+  prefetch_factor: 4
+  pin_memory: true
+
+optim:
+  name: adamw
+  lr: 1.0e-5
+  weight_decay: 5.0e-4
+  scheduler: cosine
+  warmup_epochs: 1          # shorter warmup for shorter schedule
+
+train:
+  epochs: 15
+  amp: true
+  grad_clip: 1.0
+  early_stop_patience: 3    # fail fast for CV
+  early_stop_metric: val_auc
+  log_every_steps: 100      # less verbose — 5× runs
+
+loss:
+  name: bce_with_logits
+  pos_weight: auto
+
+output:
+  run_dir: backend/ml/runs
+  weights_dir: backend/ml/weights

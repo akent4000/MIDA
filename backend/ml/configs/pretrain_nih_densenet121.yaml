@@ -1,0 +1,43 @@
+# NIH ChestX-ray14 pretraining — DenseNet-121 (CheXNet architecture).
+#
+# Run BEFORE finetune_rsna_densenet121_384.yaml.
+# Produces backbone.pt in the weights dir; reference it in the fine-tune config.
+#
+# Expected runtime on RTX 3060 (112k images, batch 64, 224px):
+#   ~17 min/epoch × 15 epochs = ~4.5 hours (early stop may cut this)
+
+run_name: pretrain_nih_densenet121
+seed: 42
+
+model:
+  arch: densenet121
+  weights: IMAGENET1K_V1   # start from ImageNet, NIH will override
+  num_classes: 14           # multi-label: 14 NIH pathology classes
+  backbone_checkpoint: null # not used during pretrain
+
+data:
+  data_dir: backend/ml/data/nih
+  val_fraction: 0.1         # 10% of train_val_list.txt held out for val
+  image_size: 224           # pretrain at 224px; fine-tune upsizes to 384px
+  batch_size: 64
+  num_workers: 8
+  prefetch_factor: 4
+  pin_memory: true
+
+optim:
+  name: adamw
+  lr: 1.0e-4
+  weight_decay: 1.0e-4
+  scheduler: cosine
+  warmup_epochs: 1
+
+train:
+  epochs: 15                # NIH converges fast on an ImageNet-pretrained backbone
+  amp: true
+  grad_clip: 1.0
+  early_stop_patience: 5
+  log_every_steps: 100      # ~1400 steps/epoch → log ~14× per epoch
+
+output:
+  run_dir: backend/ml/runs
+  weights_dir: backend/ml/weights

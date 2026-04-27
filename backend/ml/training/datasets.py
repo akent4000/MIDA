@@ -51,6 +51,8 @@ from monai.transforms import (
 from pydicom.pixels import apply_voi_lut
 from torch.utils.data import Dataset
 
+from backend.ml.training.transforms import CLAHETransform
+
 REPO_ROOT = Path(__file__).resolve().parents[3]
 DATA_DIR = REPO_ROOT / "backend" / "ml" / "data" / "rsna"
 CONFIG_DIR = REPO_ROOT / "backend" / "ml" / "configs"
@@ -79,9 +81,22 @@ def load_dicom_array(path: Path) -> np.ndarray:
 
 
 def build_transforms(split: Split, image_size: int = 224) -> Callable:
-    """MONAI transform pipeline. Input: (H, W) float32 array in [0, 1]."""
+    """MONAI transform pipeline. Input: (H, W) float32 array in [0, 1].
+
+    Pipeline order:
+        EnsureChannelFirst → [train augmentations] → CLAHE →
+        Resize → RepeatChannel(3) → NormalizeIntensity(ImageNet)
+
+    CLAHE runs before resize to preserve full-resolution contrast detail.
+    It is deterministic (same result every call) and applied to both splits.
+    """
     spatial = (image_size, image_size)
-    ops: list[Transform] = [EnsureChannelFirst(channel_dim="no_channel")]
+    # CLAHE runs first on the clean image (before augmentations can push values
+    # outside [0, 1]) and is deterministic on both splits.
+    ops: list[Transform] = [
+        EnsureChannelFirst(channel_dim="no_channel"),
+        CLAHETransform(clip_limit=0.01),
+    ]
     if split == "train":
         ops += [
             RandFlip(spatial_axis=1, prob=0.5),

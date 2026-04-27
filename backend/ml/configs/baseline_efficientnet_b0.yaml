@@ -1,0 +1,52 @@
+# Baseline RSNA Pneumonia classifier — EfficientNet-B0.
+#
+# Comparison run against baseline_resnet50.yaml. Run AFTER the ResNet50
+# baseline converges so we have a reference AUC to beat.
+#
+# EfficientNet-B0 differences vs ResNet50:
+#   - Smaller model (~5.3M params vs ~25M) → fits larger batch at same VRAM
+#   - Official input size 224px (vs 240 canonical, 224 works fine in practice)
+#   - MBConv blocks benefit more from channels_last on Ampere
+
+run_name: baseline_efficientnet_b0
+seed: 42
+
+model:
+  arch: efficientnet_b0
+  weights: IMAGENET1K_V1   # torchvision EfficientNet_B0_Weights enum name
+  num_classes: 1            # binary, single logit + BCEWithLogits
+
+data:
+  splits_path: backend/ml/configs/splits_rsna_v1.json
+  image_dir: backend/ml/data/rsna/stage_2_train_images
+  labels_csv: backend/ml/data/rsna/stage_2_train_labels.csv
+  image_size: 224
+  batch_size: 96            # EfficientNet-B0 is lighter; push batch higher
+  num_workers: 8
+  prefetch_factor: 4
+  pin_memory: true
+
+optim:
+  name: adamw
+  # ResNet50 run overfit from epoch 4 with lr=2e-4 (batch 64). Conservative
+  # base lr 1e-4 + sqrt scaling for batch 96: 1e-4 * sqrt(96/32) ≈ 1.73e-4.
+  lr: 1.73e-4
+  weight_decay: 5.0e-4      # 5× stronger L2 vs ResNet50 run (was 1e-4)
+  scheduler: cosine
+  warmup_epochs: 2          # longer warmup to ease into full lr
+
+train:
+  epochs: 30
+  amp: true
+  grad_clip: 1.0
+  early_stop_patience: 5
+  early_stop_metric: val_auc
+  log_every_steps: 50
+
+loss:
+  name: bce_with_logits
+  pos_weight: auto
+
+output:
+  run_dir: backend/ml/runs
+  weights_dir: backend/ml/weights

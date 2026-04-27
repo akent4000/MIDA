@@ -34,10 +34,10 @@ from torch.amp import GradScaler, autocast
 from torch.optim import AdamW
 from torch.optim.lr_scheduler import CosineAnnealingLR, LinearLR, SequentialLR
 from torch.utils.data import DataLoader, Subset
-from torchvision.models import ResNet50_Weights, resnet50
 
 from backend.ml.training.datasets import RSNAClassificationDataset, build_rsna_datasets
 from backend.ml.training.metrics import BinaryMetrics, compute_metrics
+from backend.ml.training.model import build_model
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 
@@ -71,6 +71,9 @@ def resolve_path(p: str | Path) -> Path:
 
 
 def seed_everything(seed: int) -> None:
+    # NOTE: cudnn.benchmark=True (set later) makes runs non-deterministic across
+    # hardware. Add torch.backends.cudnn.deterministic=True here if exact
+    # reproducibility is required (at ~20% throughput cost).
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
@@ -105,6 +108,9 @@ def build_loaders(
     cfg: dict[str, Any],
 ) -> tuple[DataLoader, DataLoader, RSNAClassificationDataset]:
     d = cfg["data"]
+    # NOTE: build_rsna_datasets builds all 3 splits (train/val/test). test_ds is
+    # discarded here to prevent any accidental use during training. The cost is
+    # one extra CSV parse (~ms). Refactor if build time becomes a bottleneck.
     train_ds, val_ds, _test_ds = build_rsna_datasets(
         splits_path=resolve_path(d["splits_path"]),
         image_dir=resolve_path(d["image_dir"]),
@@ -134,16 +140,6 @@ def build_loaders(
     return train_loader, val_loader, train_ds
 
 
-def build_model(cfg: dict[str, Any]) -> nn.Module:
-    m_cfg = cfg["model"]
-    if m_cfg["arch"] != "resnet50":
-        raise ValueError(f"unsupported arch {m_cfg['arch']!r} — only resnet50 in baseline")
-    weights = ResNet50_Weights[m_cfg["weights"]] if m_cfg.get("weights") else None
-    model = resnet50(weights=weights)
-    model.fc = nn.Linear(model.fc.in_features, m_cfg["num_classes"])
-    return model
-
-
 def resolve_pos_weight(cfg: dict[str, Any], train_ds: RSNAClassificationDataset) -> float:
     pw = cfg["loss"]["pos_weight"]
     if pw == "auto":
@@ -167,7 +163,9 @@ def build_scheduler(
     epochs = cfg["train"]["epochs"]
     warmup_epochs = cfg["optim"]["warmup_epochs"]
     total_steps = max(1, epochs * steps_per_epoch)
-    warmup_steps = max(1, warmup_epochs * steps_per_epoch)
+    if warmup_epochs == 0:
+        return CosineAnnealingLR(optim, T_max=total_steps)
+    warmup_steps = warmup_epochs * steps_per_epoch
     cosine_steps = max(1, total_steps - warmup_steps)
     warmup = LinearLR(optim, start_factor=0.1, end_factor=1.0, total_iters=warmup_steps)
     cosine = CosineAnnealingLR(optim, T_max=cosine_steps)
@@ -197,7 +195,8 @@ def train_one_epoch(
     running = 0.0
     n_batches = 0
     for step, batch in enumerate(loader):
-        images = batch["image"].to(device, non_blocking=True, memory_format=torch.channels_last)
+        fmt = torch.channels_last if device.type == "cuda" else torch.contiguous_format
+        images = batch["image"].to(device, non_blocking=True, memory_format=fmt)
         labels = batch["label"].to(device, non_blocking=True).float().unsqueeze(1)
         optim.zero_grad(set_to_none=True)
         with autocast(device_type=device.type, enabled=amp_enabled):
@@ -237,8 +236,9 @@ def evaluate(
     losses: list[float] = []
     all_probs: list[np.ndarray] = []
     all_labels: list[np.ndarray] = []
+    fmt = torch.channels_last if device.type == "cuda" else torch.contiguous_format
     for batch in loader:
-        images = batch["image"].to(device, non_blocking=True, memory_format=torch.channels_last)
+        images = batch["image"].to(device, non_blocking=True, memory_format=fmt)
         labels = batch["label"].to(device, non_blocking=True).float().unsqueeze(1)
         logits = model(images)
         loss = loss_fn(logits, labels)
@@ -338,20 +338,30 @@ def train(
         train_ds: RSNAClassificationDataset | Subset = train_ds_override
         val_ds: RSNAClassificationDataset | Subset = val_ds_override
         d = cfg["data"]
+        # Respect cfg's num_workers / pin_memory / prefetch_factor on the override
+        # path too — this is critical for CV performance. Smoke tests pass
+        # num_workers=0 in cfg, so this doesn't break them.
+        n_workers = d.get("num_workers", 0)
+        pin = d.get("pin_memory", False)
+        prefetch = d.get("prefetch_factor") if n_workers > 0 else None
         train_loader = DataLoader(
             train_ds,
             batch_size=d["batch_size"],
             shuffle=True,
-            num_workers=0,
-            pin_memory=False,
+            num_workers=n_workers,
+            pin_memory=pin,
             drop_last=False,
+            persistent_workers=n_workers > 0,
+            prefetch_factor=prefetch,
         )
         val_loader = DataLoader(
             val_ds,
             batch_size=d["batch_size"],
             shuffle=False,
-            num_workers=0,
-            pin_memory=False,
+            num_workers=n_workers,
+            pin_memory=pin,
+            persistent_workers=n_workers > 0,
+            prefetch_factor=prefetch,
         )
         pos_weight_ds = train_ds_override  # labels() for pos_weight
     else:
