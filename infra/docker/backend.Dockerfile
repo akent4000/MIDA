@@ -63,6 +63,6 @@ ENV INFERENCE_BACKEND=pytorch
 RUN --mount=type=cache,target=/root/.cache/pip \
     pip install --index-url https://download.pytorch.org/whl/cpu \
         "torch>=2.6,<2.8" "torchvision>=0.21,<0.23" \
-    && pip install -e ".[dev]"
+    && pip install -e ".[dev,train]"
 
 USER mida
