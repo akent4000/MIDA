@@ -155,6 +155,7 @@ interface ImageState {
 export function useExplanationImage(
   inferenceId: string | undefined,
   enabled: boolean,
+  hasGradcam: boolean,
 ): ImageState {
   const [state, setState] = useState<ImageState>({
     image: null,
@@ -163,7 +164,7 @@ export function useExplanationImage(
   });
 
   useEffect(() => {
-    if (!inferenceId || !enabled) {
+    if (!inferenceId || !enabled || !hasGradcam) {
       setState({ image: null, isLoading: false, error: null });
       return;
     }

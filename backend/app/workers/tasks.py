@@ -149,7 +149,11 @@ def run_inference(
 
         gradcam_key: str | None = None
         if settings.INFERENCE_BACKEND == "pytorch":
+            # PyTorch path: compute Grad-CAM via hooks on the live model.
             gradcam_key = _try_gradcam(tool, image, storage, study_id, inference_result_id)
+        elif getattr(raw_result, "cam", None) is not None:
+            # ONNX path: CAM was computed inline from the features output.
+            gradcam_key = _save_cam(raw_result.cam, storage, study_id, inference_result_id)
 
         result_dict: dict[str, Any] = {
             "interpretation": pp_result.interpretation,
@@ -210,6 +214,22 @@ def _try_gradcam(
         storage.upload(key, png_bytes, content_type="image/png")
         return key
 
+    except Exception:
+        return None
+
+
+def _save_cam(
+    cam: Any,
+    storage: Any,
+    study_id: str,
+    inference_result_id: str,
+) -> str | None:
+    """Upload a pre-computed CAM heatmap (H, W) float32 to MinIO. Returns key."""
+    try:
+        png_bytes = _heatmap_to_png(cam)
+        key = f"studies/{study_id}/inference/{inference_result_id}/gradcam.png"
+        storage.upload(key, png_bytes, content_type="image/png")
+        return key
     except Exception:
         return None
 

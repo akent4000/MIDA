@@ -21,6 +21,9 @@ class Prediction:
     prob: float  # sigmoid probability in [0, 1]
     label: int  # 0 or 1 after applying threshold
     threshold: float  # decision threshold used
+    # CAM heatmap (H, W) float32 in [0, 1], or None when unavailable.
+    # Populated by OnnxInference when the model was exported with a features output.
+    cam: np.ndarray | None = None
 
 
 class ModelInference(ABC):

@@ -81,6 +81,9 @@ class ClassificationResult(ToolResult):
     label_name: str = ""
     threshold: float = 0.5
     class_names: list[str] = field(default_factory=list)
+    # CAM heatmap (H, W) float32 in [0, 1]; None when unavailable (ONNX without
+    # features output, or ensemble mode where per-fold CAMs are averaged).
+    cam: np.ndarray | None = None
 
 
 @dataclass

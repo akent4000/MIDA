@@ -42,7 +42,8 @@ export function InferencePanel({ studyId, onOverlayChange }: Props) {
   const taskState = useTaskStatus(inference?.taskId);
   const isDone = taskState.status === "done";
   const resultQuery = useInferenceResult(inference?.id, isDone);
-  const explanation = useExplanationImage(inference?.id, isDone);
+  const hasGradcam = Boolean(resultQuery.data?.gradcam_key);
+  const explanation = useExplanationImage(inference?.id, isDone, hasGradcam);
 
   const overlayImage = overlayOn ? explanation.image : null;
   useEffect(() => {
@@ -142,7 +143,7 @@ export function InferencePanel({ studyId, onOverlayChange }: Props) {
 
       {isDone && resultQuery.data && <ResultCard result={resultQuery.data} />}
 
-      {isDone && (
+      {isDone && hasGradcam && (
         <div className="space-y-2 rounded-md border border-border bg-card/40 p-3">
           <div className="flex items-center justify-between text-xs">
             <span className="font-semibold uppercase tracking-wide text-muted-foreground">

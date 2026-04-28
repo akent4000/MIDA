@@ -107,6 +107,13 @@ class PneumoniaTool(MLTool):
             mean_prob = float(np.mean([p.prob for p in preds]))
             threshold = ENSEMBLE_THRESHOLD
             label = int(mean_prob >= threshold)
+            # Average CAMs across folds when all folds produced one.
+            fold_cams = [p.cam for p in preds if p.cam is not None]
+            ensemble_cam = (
+                np.mean(np.stack(fold_cams, axis=0), axis=0).astype(np.float32)
+                if len(fold_cams) == len(preds)
+                else None
+            )
             return ClassificationResult(
                 tool_id=self.TOOL_ID,
                 prob=mean_prob,
@@ -114,6 +121,7 @@ class PneumoniaTool(MLTool):
                 label_name=self._CLASS_NAMES[label],
                 threshold=threshold,
                 class_names=list(self._CLASS_NAMES),
+                cam=ensemble_cam,
                 metadata={"mode": MODE_ENSEMBLE, "n_models": len(self._ensemble)},
             )
 
@@ -125,6 +133,7 @@ class PneumoniaTool(MLTool):
             label_name=self._CLASS_NAMES[pred.label],
             threshold=pred.threshold,
             class_names=list(self._CLASS_NAMES),
+            cam=pred.cam,
             metadata={"mode": MODE_SINGLE, "n_models": 1},
         )
 
