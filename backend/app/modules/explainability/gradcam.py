@@ -117,7 +117,10 @@ class GradCAMExplainer(Explainer):
 
         # Upsample to input spatial dimensions
         h_in, w_in = image.shape[-2], image.shape[-1]
-        cam_img = Image.fromarray(cam_arr).resize((w_in, h_in), Image.Resampling.BICUBIC)
+        # GaussianBlur requires an integer-mode image ("L"), not float32 ("F").
+        cam_max = cam_arr.max()
+        cam_u8 = ((cam_arr / (cam_max + 1e-8)) * 255).astype(np.uint8)
+        cam_img = Image.fromarray(cam_u8).resize((w_in, h_in), Image.Resampling.BICUBIC)
 
         # Smooth: Gaussian blur with radius proportional to image size
         blur_radius = max(1, h_in // 48)

@@ -154,7 +154,7 @@ class PneumoniaTool(MLTool):
     def get_gradcam_target_layer(self) -> str | None:
         # Grad-CAM is only meaningful for a single concrete model; ensemble
         # mode falls back to single's hooks via the worker's _try_gradcam path.
-        return "features.denseblock3"
+        return "features.denseblock4"
 
     # ------------------------------------------------------------------
     # Settings

@@ -14,7 +14,6 @@ FROM python:3.11-slim AS prod
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    PIP_NO_CACHE_DIR=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
     INFERENCE_BACKEND=onnx
 
@@ -31,7 +30,9 @@ COPY pyproject.toml ./
 # Stub lets pip resolve and install all deps without the real source.
 # The editable link already points to /app, so the COPY below just fills it in.
 RUN mkdir -p backend && touch backend/__init__.py
-RUN pip install -e .
+# --mount=type=cache keeps downloaded wheels in the BuildKit layer cache
+# (not included in the final image) so rebuilds after dep changes are fast.
+RUN --mount=type=cache,target=/root/.cache/pip pip install -e .
 
 # ── Layer 2: application source (invalidated on every commit, but cheap) ─────
 COPY alembic.ini ./
@@ -59,7 +60,8 @@ FROM prod AS dev
 
 USER root
 ENV INFERENCE_BACKEND=pytorch
-RUN pip install --index-url https://download.pytorch.org/whl/cpu \
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install --index-url https://download.pytorch.org/whl/cpu \
         "torch>=2.6,<2.8" "torchvision>=0.21,<0.23" \
     && pip install -e ".[dev]"
 
