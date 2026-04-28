@@ -34,6 +34,8 @@ from onnxruntime.quantization import (
 )
 from onnxruntime.quantization.shape_inference import quant_pre_process
 
+import onnx
+
 from backend.app.modules.dicom.service import DicomService
 from backend.app.modules.preprocessing.pipeline import PreprocessingPipeline
 
@@ -104,9 +106,6 @@ def quantize(
     rng = random.Random(seed)
     sample_paths = rng.sample(all_samples, num_samples)
 
-    # Look up the input name from the FP32 model so we don't hard-code "input".
-    import onnx
-
     pre_path = int8_path.with_suffix(".pre.onnx")
     # skip_symbolic_shape: DenseNet's dense-concat graph has dynamic shapes that
     # SymbolicShapeInference can't resolve at opset 18; static ONNX shape inference
@@ -131,6 +130,11 @@ def quantize(
 
     pre_path.unlink(missing_ok=True)
 
+    # quantize_static strips custom metadata_props (threshold, classifier_weights,
+    # cam_output). Copy them from the original FP32 model so OnnxInference can
+    # read the threshold and compute CAM on prod.
+    _copy_metadata(fp32_path, int8_path)
+
     fp32_size = fp32_path.stat().st_size
     int8_size = int8_path.stat().st_size
 
@@ -142,6 +146,26 @@ def quantize(
         "int8_size_bytes": int8_size,
         "compression_ratio": round(fp32_size / int8_size, 2),
     }
+
+
+def _copy_metadata(fp32_path: Path, int8_path: Path) -> None:
+    """Copy custom metadata_props from the FP32 model into the INT8 model.
+
+    quantize_static strips metadata_props (threshold_youden, classifier_weights,
+    cam_output, input_shape).  Restoring them from the original FP32 file lets
+    OnnxInference read the threshold and compute CAM on prod without re-quantizing.
+    """
+    fp32_model = onnx.load(str(fp32_path), load_external_data=False)
+    int8_model = onnx.load(str(int8_path))
+
+    existing_keys = {p.key for p in int8_model.metadata_props}
+    for prop in fp32_model.metadata_props:
+        if prop.key not in existing_keys:
+            entry = int8_model.metadata_props.add()
+            entry.key = prop.key
+            entry.value = prop.value
+
+    onnx.save(int8_model, str(int8_path))
 
 
 def _cli() -> None:
