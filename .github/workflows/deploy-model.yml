@@ -2,8 +2,16 @@ name: Deploy Model to Prod
 
 # Triggered by tagging the repo with v*. Pulls the chosen single + 5 fold
 # checkpoints from MinIO, exports each to ONNX, INT8-quantizes them using a
-# small RSNA calibration sample (also pulled from MinIO), scp's the result
-# to the prod server, and asks Celery to restart picking up the new files.
+# small RSNA calibration sample (also pulled from MinIO), uploads the result
+# to MinIO under mida-models/onnx/ (where ModelStoreService.resolve picks
+# them up via PNEUMONIA_*_MINIO_KEY), then restarts the worker so the
+# new ONNX sessions are loaded into memory.
+#
+# Object key convention (must match .env.prod on the server):
+#   onnx/single-int8.onnx          ← PNEUMONIA_WEIGHTS_MINIO_KEY
+#   onnx/fold{1..5}-int8.onnx      ← PNEUMONIA_ENSEMBLE_MINIO_KEYS (csv)
+# When calibration data is missing the suffix drops to plain .onnx (FP32);
+# update .env.prod accordingly in that case.
 #
 # Required secrets:
 #   SSH_PRIVATE_KEY   — deploy key for the prod server
@@ -139,24 +147,25 @@ jobs:
           EOF
           chmod 600 ~/.ssh/config
 
-      - name: Ensure server-side models directory exists
-        run: |
-          ssh prod "mkdir -p '${PROD_DEPLOY_PATH}/infra/models'"
-
-      - name: Upload models to prod
+      - name: Upload ONNX models to MinIO
         run: |
           # Prefer INT8 on prod; fall back to FP32 if quantize was skipped.
+          # Uploaded keys must match PNEUMONIA_*_MINIO_KEY in .env.prod —
+          # ModelStoreService picks them up on the next worker restart and
+          # detects newer S3 LastModified to invalidate the local cache.
           shopt -s nullglob
           if compgen -G "$WORK_DIR/onnx/*-int8.onnx" >/dev/null; then
               models=("$WORK_DIR/onnx/"*-int8.onnx)
           else
               models=("$WORK_DIR/onnx/"*.onnx)
           fi
-          # Compose mounts ./models relative to the compose file (infra/), so
-          # models live at $PROD_DEPLOY_PATH/infra/models/.
-          rsync -av --delete "${models[@]}" "prod:${PROD_DEPLOY_PATH}/infra/models/"
+          for src in "${models[@]}"; do
+            name=$(basename "$src")
+            mc cp "$src" "mida/mida-models/onnx/${name}"
+          done
+          mc ls --recursive "mida/mida-models/onnx/"
 
-      - name: Restart Celery worker on prod
+      - name: Restart prod services to pick up new weights
         run: |
           ssh prod "cd '${PROD_DEPLOY_PATH}/infra' && \
             docker compose --env-file .env.prod -f docker-compose.prod.yml restart worker backend"

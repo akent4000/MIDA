@@ -102,7 +102,7 @@ class GradCAMExplainer(Explainer):
 
         # Forward + backward so hooks fire
         logit: Tensor = self._model(tensor)
-        logit.backward()  # type: ignore[no-untyped-call]
+        logit.backward()
 
         if self._activations is None or self._gradients is None:
             raise RuntimeError(
