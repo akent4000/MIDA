@@ -81,7 +81,7 @@ class ModelStoreService:
         try:
             stat = self._client.stat_object(self._bucket, key)
             local_mtime = datetime.datetime.fromtimestamp(
-                local.stat().st_mtime, tz=datetime.timezone.utc
+                local.stat().st_mtime, tz=datetime.UTC
             )
             stale = stat.last_modified > local_mtime
             if stale:

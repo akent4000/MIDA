@@ -25,6 +25,7 @@ from pathlib import Path
 from typing import Any
 
 import numpy as np
+import onnx
 from onnxruntime.quantization import (
     CalibrationDataReader,
     CalibrationMethod,
@@ -33,8 +34,6 @@ from onnxruntime.quantization import (
     quantize_static,
 )
 from onnxruntime.quantization.shape_inference import quant_pre_process
-
-import onnx
 
 from backend.app.modules.dicom.service import DicomService
 from backend.app.modules.preprocessing.pipeline import PreprocessingPipeline

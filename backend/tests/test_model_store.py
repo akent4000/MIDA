@@ -67,7 +67,7 @@ class TestResolve:
 
         # stat_object returns a timestamp older than the local file → not stale
         stat_mock = MagicMock()
-        stat_mock.last_modified = datetime.datetime(2000, 1, 1, tzinfo=datetime.timezone.utc)
+        stat_mock.last_modified = datetime.datetime(2000, 1, 1, tzinfo=datetime.UTC)
         with (
             patch.object(store._client, "stat_object", return_value=stat_mock),
             patch.object(store._client, "fget_object") as mock_fget,
@@ -85,7 +85,7 @@ class TestResolve:
 
         # stat_object returns a timestamp newer than the local file → stale
         stat_mock = MagicMock()
-        stat_mock.last_modified = datetime.datetime(2099, 1, 1, tzinfo=datetime.timezone.utc)
+        stat_mock.last_modified = datetime.datetime(2099, 1, 1, tzinfo=datetime.UTC)
         with (
             patch.object(store._client, "stat_object", return_value=stat_mock),
             patch.object(store._client, "fget_object", side_effect=_fake_fget(b"new")),

@@ -190,7 +190,7 @@ export function useExplanationImage(
       img.onload = null;
       img.onerror = null;
     };
-  }, [inferenceId, enabled]);
+  }, [inferenceId, enabled, hasGradcam]);
 
   return state;
 }
