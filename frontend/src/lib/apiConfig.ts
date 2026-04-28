@@ -10,6 +10,12 @@ export function apiUrl(path: string): string {
 export function wsUrl(path: string): string {
   const base = import.meta.env.VITE_WS_BASE_URL;
   if (base) return `${base.replace(/\/$/, "")}${path}`;
+  // Derive from API base URL so WS goes to api.* not app.*
+  const apiBase = import.meta.env.VITE_API_BASE_URL;
+  if (apiBase) {
+    const wsBase = apiBase.replace(/^http/, "ws").replace(/\/$/, "");
+    return `${wsBase}${path}`;
+  }
   const proto = window.location.protocol === "https:" ? "wss:" : "ws:";
   return `${proto}//${window.location.host}${path}`;
 }
