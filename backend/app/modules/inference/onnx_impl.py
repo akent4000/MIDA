@@ -136,7 +136,8 @@ def _compute_cam(
     cam_min, cam_max = cam.min(), cam.max()
     cam = (cam - cam_min) / (cam_max - cam_min) if cam_max > cam_min else np.zeros_like(cam)
 
-    return cam.astype(np.float32)
+    result: np.ndarray = cam.astype(np.float32)
+    return result
 
 
 def _sigmoid(x: float) -> float:
