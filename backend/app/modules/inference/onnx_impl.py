@@ -134,10 +134,7 @@ def _compute_cam(
     cam = np.maximum(cam, 0)  # ReLU
 
     cam_min, cam_max = cam.min(), cam.max()
-    if cam_max > cam_min:
-        cam = (cam - cam_min) / (cam_max - cam_min)
-    else:
-        cam = np.zeros_like(cam)
+    cam = (cam - cam_min) / (cam_max - cam_min) if cam_max > cam_min else np.zeros_like(cam)
 
     return cam.astype(np.float32)
 
