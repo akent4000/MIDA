@@ -1,8 +1,10 @@
 """Lazy weight resolver — downloads model artefacts from MinIO on first use.
 
 The local cache survives container restarts if the cache directory is on a
-named Docker volume.  If the file is already present (same name), it is
-returned immediately without contacting MinIO.
+named Docker volume.  On each resolve() call the S3 LastModified timestamp
+is compared against the local file mtime; if the remote object is newer the
+file is re-downloaded automatically, so uploading a new model to MinIO and
+restarting the worker is enough to deploy it — no manual cache clearing.
 
 Download is atomic: the bytes are written to a .tmp sibling first, then
 renamed, so a killed process never leaves a partial file that looks valid.
@@ -14,6 +16,7 @@ locking is cheap and keeps the service correct if that ever changes.
 
 from __future__ import annotations
 
+import datetime
 import logging
 import threading
 from pathlib import Path
@@ -54,21 +57,43 @@ class ModelStoreService:
     def resolve(self, key: str) -> Path:
         """Return the local path for *key*, downloading from MinIO if needed.
 
+        If a cached copy already exists its modification time is compared
+        against the S3 LastModified timestamp.  When the remote object is
+        newer (i.e. a model was re-uploaded to MinIO) the file is
+        re-downloaded automatically, so uploading a new model + restarting
+        the worker is sufficient to deploy it without manual cache clearing.
+
         Raises WeightNotFoundError if the key does not exist in the bucket.
         """
         local = self._local_path(key)
-        if local.exists():
-            logger.debug("model_store cache hit: %s", key)
-            return local
 
         lock = self._key_lock(key)
         with lock:
-            # Re-check after acquiring lock — another thread may have downloaded.
-            if local.exists():
+            if local.exists() and not self._is_stale(key, local):
+                logger.debug("model_store cache hit: %s", key)
                 return local
             self._download(key, local)
 
         return local
+
+    def _is_stale(self, key: str, local: Path) -> bool:
+        """Return True if the S3 object is newer than the local cached file."""
+        try:
+            stat = self._client.stat_object(self._bucket, key)
+            local_mtime = datetime.datetime.fromtimestamp(
+                local.stat().st_mtime, tz=datetime.timezone.utc
+            )
+            stale = stat.last_modified > local_mtime
+            if stale:
+                logger.info(
+                    "model_store: %s is stale (local %s < s3 %s), will re-download",
+                    key,
+                    local_mtime.isoformat(),
+                    stat.last_modified.isoformat(),
+                )
+            return stale
+        except S3Error:
+            return False
 
     def exists_remote(self, key: str) -> bool:
         """Return True if *key* exists in the MinIO bucket."""

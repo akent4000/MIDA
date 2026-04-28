@@ -6,6 +6,7 @@ MinIO client methods are patched via unittest.mock.
 
 from __future__ import annotations
 
+import datetime
 import os
 import threading
 from pathlib import Path
@@ -60,12 +61,50 @@ class TestResolve:
 
     def test_cache_hit_skips_download(self, tmp_path: Path) -> None:
         store = _make_store(tmp_path)
-        # Pre-populate cache
         cached = tmp_path / "cache" / "onnx" / "single-int8.onnx"
         cached.parent.mkdir(parents=True)
         cached.write_bytes(b"cached")
 
-        with patch.object(store._client, "fget_object") as mock_fget:
+        # stat_object returns a timestamp older than the local file → not stale
+        stat_mock = MagicMock()
+        stat_mock.last_modified = datetime.datetime(2000, 1, 1, tzinfo=datetime.timezone.utc)
+        with (
+            patch.object(store._client, "stat_object", return_value=stat_mock),
+            patch.object(store._client, "fget_object") as mock_fget,
+        ):
+            path = store.resolve("onnx/single-int8.onnx")
+            mock_fget.assert_not_called()
+
+        assert path.read_bytes() == b"cached"
+
+    def test_stale_cache_triggers_redownload(self, tmp_path: Path) -> None:
+        store = _make_store(tmp_path)
+        cached = tmp_path / "cache" / "onnx" / "single-int8.onnx"
+        cached.parent.mkdir(parents=True)
+        cached.write_bytes(b"old")
+
+        # stat_object returns a timestamp newer than the local file → stale
+        stat_mock = MagicMock()
+        stat_mock.last_modified = datetime.datetime(2099, 1, 1, tzinfo=datetime.timezone.utc)
+        with (
+            patch.object(store._client, "stat_object", return_value=stat_mock),
+            patch.object(store._client, "fget_object", side_effect=_fake_fget(b"new")),
+        ):
+            path = store.resolve("onnx/single-int8.onnx")
+
+        assert path.read_bytes() == b"new"
+
+    def test_stat_error_treats_cache_as_fresh(self, tmp_path: Path) -> None:
+        store = _make_store(tmp_path)
+        cached = tmp_path / "cache" / "onnx" / "single-int8.onnx"
+        cached.parent.mkdir(parents=True)
+        cached.write_bytes(b"cached")
+
+        stat_err = S3Error("ServiceUnavailable", "", "", "", "", "")
+        with (
+            patch.object(store._client, "stat_object", side_effect=stat_err),
+            patch.object(store._client, "fget_object") as mock_fget,
+        ):
             path = store.resolve("onnx/single-int8.onnx")
             mock_fget.assert_not_called()
 
