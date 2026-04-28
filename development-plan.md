@@ -308,7 +308,7 @@ class OnnxInference(ModelInference):
 
 ## 7. План разработки по фазам
 
-### Фаза 0: Подготовка (3–5 дней)
+### Фаза 0: Подготовка (3–5 дней) — ✅ ЗАВЕРШЕНО
 
 - Выбор конкретной задачи и датасета (BraTS / RSNA / ISIC)
 - Изучение датасета, написание EDA-ноутбука
@@ -320,7 +320,9 @@ class OnnxInference(ModelInference):
 
 **Результат:** пустой, но рабочий каркас проекта с поднятой инфраструктурой.
 
-### Фаза 1: ML-модель (2–3 недели) — выполняется на десктопе (RTX 3060)
+### Фаза 1: ML-модель (2–3 недели) — выполняется на десктопе (RTX 3060) — ✅ ЗАВЕРШЕНО
+
+**Итог:** обучен 5-fold ансамбль DenseNet-121 (384×384) с TTA, AUC 0.8927 на 4 003-пациентном тестовом сплите RSNA. Чекпоинты опубликованы в MinIO (`mida-models/weights/`). Цель плана §8 (AUC ≥ 0.90) пока не достигнута — приоритеты в фазе 6 либо принимаем текущий результат, либо добавляем фокус-лосс / больший backbone.
 
 - Написание пайплайна загрузки данных на MONAI
 - Baseline-модель (например, Light U-Net для сегментации)
@@ -334,7 +336,9 @@ class OnnxInference(ModelInference):
 
 **Результат:** обученная модель с документированными метриками и артефакт с весами.
 
-### Фаза 1б: CheXpert — 14 патологий (2–3 недели) — выполняется на десктопе (RTX 3060)
+### Фаза 1б: CheXpert — 14 патологий (2–3 недели) — выполняется на десктопе (RTX 3060) — ⏳ ОТЛОЖЕНО
+
+Опциональный второй ML-инструмент. Реестр (`MLTool` ABC) и API спроектированы так, что добавление тулзы не затрагивает остальные слои — реализуется после защиты, если останется время.
 
 **Датасет:** [CheXpert (Stanford)](https://stanfordmlgroup.github.io/competitions/chexpert/) — 224 316 рентгенограмм грудной клетки от 65 240 пациентов (фронтальная и боковая проекции). Мультиметочная разметка: каждое исследование может иметь несколько патологий одновременно.
 
@@ -370,7 +374,7 @@ No Finding, Enlarged Cardiomediastinum, Cardiomegaly, Lung Opacity, Lung Lesion,
 
 **Результат:** обученная мультиметочная модель + `CheXpertTool` в реестре; API и DICOM-слой изменений не требуют.
 
-### Фаза 2: Backend-ядро (2 недели) — **В РАБОТЕ**
+### Фаза 2: Backend-ядро (2 недели) — ✅ ЗАВЕРШЕНО
 
 Архитектура ядра строится вокруг **реестра ML-инструментов** (см. §1.0), что позволяет добавлять новые клинические задачи без изменения остальных слоёв.
 
@@ -383,16 +387,13 @@ No Finding, Enlarged Cardiomediastinum, Cardiomegaly, Lung Opacity, Lung Lesion,
 | Preprocessing Pipeline | `preprocessing/` | ✅ готов |
 | Postprocessing Pipeline | `postprocessing/` | ✅ готов |
 | Explainability (Grad-CAM) | `explainability/` | ✅ готов |
-| Inference ABC + backends | `inference/` | ✅ (Phase 1) |
+| Inference ABC + backends | `inference/` | ✅ готов (PyTorch + ONNX) |
 
-Пендинг:
-- Интеграционный тест полного пайплайна (DICOM → preprocess → predict → postprocess → explain)
-- CLI-утилита `python -m backend.app.cli` для headless smoke-теста
-- Настройка structlog
+Каждый модуль покрыт unit-тестами и проверяется в headless-режиме без FastAPI.
 
 **Результат:** работающее ядро, тестируемое без FastAPI.
 
-### Фаза 3: REST API (1–2 недели)
+### Фаза 3: REST API (1–2 недели) — ✅ ЗАВЕРШЕНО
 
 - Настройка FastAPI, Pydantic-схем, зависимостей
 - Реализация эндпоинтов согласно контракту
@@ -402,9 +403,9 @@ No Finding, Enlarged Cardiomediastinum, Cardiomegaly, Lung Opacity, Lung Lesion,
 - Автоматическая генерация OpenAPI-клиента для фронтенда
 - API-тесты через httpx
 
-**Результат:** задокументированный рабочий API, проверяемый через Swagger UI.
+**Результат:** задокументированный рабочий API, проверяемый через Swagger UI. Реализованы все эндпоинты §6 (`/api/v1/studies`, `/api/v1/inference/...`, `/api/v1/models`, `/api/v1/tasks/{id}`, `/api/v1/tools/{id}/config`) и WebSocket-канал `/ws/tasks/{task_id}`. Celery-таски (`backend/app/workers/`) обрабатывают инференс асинхронно, статусы летят через WebSocket. Миграции БД — Alembic (`backend/alembic/versions/001_initial.py`, `002_tool_settings.py`).
 
-### Фаза 4: Frontend (2–3 недели)
+### Фаза 4: Frontend (2–3 недели) — ✅ ЗАВЕРШЕНО
 
 - Настройка Vite + React + TypeScript
 - Генерация API-клиента из OpenAPI-схемы (`openapi-typescript-codegen`)
@@ -416,24 +417,25 @@ No Finding, Enlarged Cardiomediastinum, Cardiomegaly, Lung Opacity, Lung Lesion,
 - Индикатор статуса фоновой задачи через WebSocket
 - Страница истории исследований
 
-**Результат:** полноценный клиент, работающий поверх headless-ядра.
+**Результат:** полноценный клиент, работающий поверх headless-ядра. Страницы — `UploadPage`, `StudyPage`, `HistoryPage`, `SettingsPage`, `NotFoundPage`; компоненты — `StudyViewer` (Cornerstone.js), `InferencePanel`, `MetadataPanel`, `ResultCard`, `Layout` + shadcn/ui-набор. API-клиент сгенерирован из OpenAPI-схемы.
 
-### Фаза 5: DevOps и развёртывание (1 неделя)
+### Фаза 5: DevOps и развёртывание (1 неделя) — ✅ ЗАВЕРШЕНО
 
 - Dockerfile для backend и frontend (multi-stage builds)
 - `docker-compose.dev.yml` — десктоп, с секцией `deploy.resources` для GPU
 - `docker-compose.prod.yml` — сервер, CPU-only, лимиты памяти на контейнеры
 - Настройка Caddy на сервере для проксирования FastAPI и отдачи фронтенда (Caddy уже установлен ✅)
-- GitHub Actions — три workflow:
-  - **`ci.yml`** ✅ (готово) — на каждый push/PR в main: `ruff` → `mypy` → `pytest --cov`; torch устанавливается CPU-only (`whl/cpu`) отдельно от `pyproject.toml`
-  - **`build.yml`** — на push в main после CI: сборка multi-stage Docker-образов backend + frontend, push в GHCR (`ghcr.io/<org>/mida-backend`, `mida-frontend`)
-  - **`deploy-model.yml`** — на `git tag v*`: скачать `.pt` из MinIO → экспорт ONNX → INT8-квантизация → `scp model.onnx` на prod-сервер → SSH-перезапуск Celery-воркера
+- GitHub Actions — четыре workflow в `.github/workflows/`:
+  - **`ci.yml`** ✅ — на каждый push/PR в main: `ruff` → `mypy` → `pytest --cov`; torch устанавливается CPU-only (`whl/cpu`) отдельно от `pyproject.toml`
+  - **`build.yml`** ✅ — на push в main после CI: сборка multi-stage Docker-образов backend + frontend, push в GHCR (`ghcr.io/<org>/mida-backend`, `mida-frontend`)
+  - **`deploy.yml`** ✅ — на успешный `Build & Publish Images` в main: SSH-pull образов и `docker compose up -d` на prod-сервере
+  - **`deploy-model.yml`** ✅ — на `git tag v*`: скачать `.pt` из MinIO → экспорт ONNX → INT8-квантизация → `scp model.onnx` на prod-сервер → SSH-перезапуск Celery-воркера
 - Секреты GitHub Actions (Settings → Secrets → Actions): `SSH_PRIVATE_KEY`, `PROD_HOST`, `PROD_USER`, `MINIO_ENDPOINT`, `MINIO_ACCESS_KEY`, `MINIO_SECRET_KEY`
 - Настройка Celery с `--concurrency=1 --pool=solo` под i3-4030U
 
 **Результат:** приложение разворачивается одной командой `docker-compose up`.
 
-### Фаза 6: Документация и защита (1 неделя)
+### Фаза 6: Документация и защита (1 неделя) — ⏳ В РАБОТЕ
 
 - Написание итогового отчёта (pdf): постановка задачи, обзор литературы, архитектура, результаты экспериментов, метрики, выводы
 - Диаграммы архитектуры (C4-модель или UML)
