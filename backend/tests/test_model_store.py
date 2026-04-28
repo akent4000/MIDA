@@ -156,16 +156,18 @@ class TestResolve:
 
         def _worker() -> None:
             try:
-                with patch.object(store._client, "fget_object", side_effect=_counted):
-                    store.resolve("onnx/single-int8.onnx")
+                store.resolve("onnx/single-int8.onnx")
             except Exception as exc:
                 errors.append(exc)
 
-        threads = [threading.Thread(target=_worker) for _ in range(5)]
-        for t in threads:
-            t.start()
-        for t in threads:
-            t.join()
+        # Patch once in the main thread so concurrent workers all share the same
+        # mock — patching per-thread on the same object races on __exit__ restores.
+        with patch.object(store._client, "fget_object", side_effect=_counted):
+            threads = [threading.Thread(target=_worker) for _ in range(5)]
+            for t in threads:
+                t.start()
+            for t in threads:
+                t.join()
 
         assert not errors
         # At most 1 real download — subsequent threads hit the cached file
