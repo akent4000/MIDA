@@ -14,7 +14,7 @@ from typing import Any
 import numpy as np
 import torch
 import torch.nn as nn
-from PIL import Image
+from PIL import Image, ImageFilter
 from torch import Tensor
 
 from .base import Explainer
@@ -117,11 +117,19 @@ class GradCAMExplainer(Explainer):
 
         # Upsample to input spatial dimensions
         h_in, w_in = image.shape[-2], image.shape[-1]
-        cam_img = Image.fromarray(cam_arr).resize((w_in, h_in), Image.Resampling.BILINEAR)
+        cam_img = Image.fromarray(cam_arr).resize((w_in, h_in), Image.Resampling.BICUBIC)
+
+        # Smooth: Gaussian blur with radius proportional to image size
+        blur_radius = max(1, h_in // 48)
+        cam_img = cam_img.filter(ImageFilter.GaussianBlur(radius=blur_radius))
+
         cam_out = np.asarray(cam_img, dtype=np.float32)
 
-        lo, hi = cam_out.min(), cam_out.max()
-        return (cam_out - lo) / (hi - lo) if hi > lo else np.zeros_like(cam_out)
+        # Percentile stretch: clip outliers then normalize to [0, 1]
+        lo, hi = np.percentile(cam_out, [2, 98])
+        if hi > lo:
+            return np.clip((cam_out - lo) / (hi - lo), 0.0, 1.0)
+        return np.zeros_like(cam_out)
 
     # ------------------------------------------------------------------
     # Convenience factory
