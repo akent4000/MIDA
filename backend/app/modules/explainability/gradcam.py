@@ -128,7 +128,7 @@ class GradCAMExplainer(Explainer):
         # Percentile stretch: clip outliers then normalize to [0, 1]
         lo, hi = np.percentile(cam_out, [2, 98])
         if hi > lo:
-            return np.clip((cam_out - lo) / (hi - lo), 0.0, 1.0)
+            return np.asarray(np.clip((cam_out - lo) / (hi - lo), 0.0, 1.0), dtype=np.float32)
         return np.zeros_like(cam_out)
 
     # ------------------------------------------------------------------
