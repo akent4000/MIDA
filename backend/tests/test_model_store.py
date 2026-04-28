@@ -160,9 +160,18 @@ class TestResolve:
             except Exception as exc:
                 errors.append(exc)
 
+        # stat_object must also be mocked: after thread 1 downloads the file,
+        # threads 2-5 find it exists and call _is_stale() → stat_object(), which
+        # would otherwise attempt a real connection to localhost:9000.
+        stat_mock = MagicMock()
+        stat_mock.last_modified = datetime.datetime(2000, 1, 1, tzinfo=datetime.UTC)
+
         # Patch once in the main thread so concurrent workers all share the same
         # mock — patching per-thread on the same object races on __exit__ restores.
-        with patch.object(store._client, "fget_object", side_effect=_counted):
+        with (
+            patch.object(store._client, "fget_object", side_effect=_counted),
+            patch.object(store._client, "stat_object", return_value=stat_mock),
+        ):
             threads = [threading.Thread(target=_worker) for _ in range(5)]
             for t in threads:
                 t.start()
