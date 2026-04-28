@@ -83,6 +83,8 @@ class ModelStoreService:
             local_mtime = datetime.datetime.fromtimestamp(
                 local.stat().st_mtime, tz=datetime.UTC
             )
+            if stat.last_modified is None:
+                return False
             stale = stat.last_modified > local_mtime
             if stale:
                 logger.info(
