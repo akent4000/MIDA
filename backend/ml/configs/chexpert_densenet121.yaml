@@ -1,0 +1,45 @@
+run_name: chexpert_densenet121_320
+
+seed: 42
+
+model:
+  arch: densenet121
+  weights: null         # set to "IMAGENET1K_V1" to start from ImageNet weights
+  num_classes: 14
+  # Set to a backbone.pt path from pretrain_nih to warm-start from NIH pretrain:
+  # backbone_checkpoint: backend/ml/weights/pretrain_nih_densenet121_<timestamp>/backbone.pt
+  backbone_checkpoint: null
+
+data:
+  data_dir: backend/ml/data/chexpert
+  val_fraction: 0.1      # patient-level holdout
+  image_size: 320
+  batch_size: 32         # 320px × 32 ≈ 6 GB VRAM on RTX 3060
+  num_workers: 8         # ignored when preload=true (set to 0 automatically)
+  prefetch_factor: 4
+  pin_memory: true
+  u_strategy: ignore     # ignore | zeros | ones
+  frontal_only: true     # use only frontal-view images
+  preload: true             # preload all images into RAM (~19.5 GB, requires 24 GB+)
+  num_preload_workers: 8    # processes for one-time CLAHE+resize (ProcessPoolExecutor)
+  num_workers_preload: 4    # DataLoader workers when preloaded (share_memory_, no copy)
+  cache_dir: backend/ml/data/chexpert/cache  # save/load precomputed numpy cache
+
+optim:
+  name: adamw
+  lr: 3.0e-4
+  weight_decay: 1.0e-4
+  scheduler: cosine
+  warmup_epochs: 2
+
+train:
+  epochs: 30
+  amp: true
+  compile: false         # torch.compile требует Triton — не работает на Windows
+  grad_clip: 1.0
+  early_stop_patience: 7
+  log_every_steps: 100
+
+output:
+  run_dir: backend/ml/runs
+  weights_dir: backend/ml/weights

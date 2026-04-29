@@ -87,6 +87,23 @@ class ClassificationResult(ToolResult):
 
 
 @dataclass
+class MultiLabelClassificationResult(ToolResult):
+    """Result for multi-label classification tasks (e.g. CheXpert 14-class).
+
+    Each class is an independent binary classifier — a single image may have
+    multiple active labels simultaneously.
+    """
+
+    probs: list[float] = field(default_factory=list)  # one probability per class
+    labels: list[int] = field(default_factory=list)  # 1 if prob >= threshold
+    class_names: list[str] = field(default_factory=list)
+    threshold: float = 0.5
+    # Grad-CAM per active class (class_name → (H, W) float32 in [0, 1]).
+    # Only classes with label=1 are included; empty dict when CAMs are unavailable.
+    cams: dict[str, np.ndarray] = field(default_factory=dict)
+
+
+@dataclass
 class SegmentationResult(ToolResult):
     """Pixel-level class mask."""
 

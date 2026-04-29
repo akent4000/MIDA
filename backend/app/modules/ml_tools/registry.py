@@ -53,8 +53,7 @@ class ToolRegistry:
         """Instantiate the tool class and load weights from *weights_path*."""
         if tool_id not in self._classes:
             raise ToolNotFoundError(
-                f"Unknown tool: {tool_id!r}. "
-                f"Available: {list(self._classes)}"
+                f"Unknown tool: {tool_id!r}. " f"Available: {list(self._classes)}"
             )
         instance = self._classes[tool_id]()
         instance.load(weights_path)
@@ -115,8 +114,10 @@ def build_registry() -> ToolRegistry:
         from backend.app.modules.ml_tools.my_tool.tool import MyTool
         registry.register_class(MyTool.TOOL_ID, MyTool)
     """
+    from backend.app.modules.ml_tools.chexpert.tool import CheXpertTool
     from backend.app.modules.ml_tools.pneumonia.tool import PneumoniaTool
 
     registry = ToolRegistry()
     registry.register_class(PneumoniaTool.TOOL_ID, PneumoniaTool)
+    registry.register_class(CheXpertTool.TOOL_ID, CheXpertTool)
     return registry
