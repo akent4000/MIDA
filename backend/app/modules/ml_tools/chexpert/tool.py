@@ -16,8 +16,6 @@ from pathlib import Path
 from typing import Any
 
 import numpy as np
-import torch
-import torch.nn as nn
 
 from backend.app.modules.ml_tools.base import (
     MLTool,
@@ -27,7 +25,24 @@ from backend.app.modules.ml_tools.base import (
     TaskType,
     ToolResult,
 )
-from backend.ml.training.chexpert_dataset import CHEXPERT_LABELS, NUM_CLASSES
+
+CHEXPERT_LABELS: list[str] = [
+    "No Finding",
+    "Enlarged Cardiomediastinum",
+    "Cardiomegaly",
+    "Lung Opacity",
+    "Lung Lesion",
+    "Edema",
+    "Consolidation",
+    "Pneumonia",
+    "Atelectasis",
+    "Pneumothorax",
+    "Pleural Effusion",
+    "Pleural Other",
+    "Fracture",
+    "Support Devices",
+]
+NUM_CLASSES = len(CHEXPERT_LABELS)
 
 TOOL_ID = "chexpert_14"
 _GRADCAM_LAYER = "features.denseblock4"
@@ -42,8 +57,8 @@ class CheXpertTool(MLTool):
     TOOL_ID = TOOL_ID
 
     def __init__(self) -> None:
-        self._model: nn.Module | None = None
-        self._device = torch.device("cpu")
+        self._model: Any = None
+        self._device: Any = None  # set in load()
         self._loaded = False
 
     @property
@@ -65,6 +80,15 @@ class CheXpertTool(MLTool):
     def load(self, weights_path: Path) -> None:
         if self._loaded:
             return
+        import os
+
+        if os.environ.get("INFERENCE_BACKEND", "pytorch").lower() == "onnx":
+            raise NotImplementedError(
+                "CheXpertTool: ONNX backend not implemented yet — "
+                "this tool requires PyTorch (dev environment only)."
+            )
+        import torch
+
         from backend.ml.training.model import build_model
 
         self._device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -89,6 +113,8 @@ class CheXpertTool(MLTool):
 
     def predict(self, image: np.ndarray) -> ToolResult:
         """Predict 14-class probabilities from a preprocessed (C, H, W) float32 image."""
+        import torch
+
         assert self._model is not None, "call load() first"
         fmt = torch.channels_last if self._device.type == "cuda" else torch.contiguous_format
         tensor = torch.from_numpy(image).unsqueeze(0).to(self._device, memory_format=fmt)
@@ -110,6 +136,9 @@ class CheXpertTool(MLTool):
 
     def _compute_cams(self, image: np.ndarray, probs: np.ndarray) -> dict[str, np.ndarray]:
         """Grad-CAM for each active class (prob >= threshold)."""
+        import torch
+        import torch.nn as nn
+
         assert self._model is not None
         active = [i for i, p in enumerate(probs) if p >= _DEFAULT_THRESHOLD]
         if not active:
@@ -120,13 +149,13 @@ class CheXpertTool(MLTool):
             return {}
 
         cams: dict[str, np.ndarray] = {}
-        activations: list[torch.Tensor] = []
-        gradients: list[torch.Tensor] = []
+        activations: list[Any] = []
+        gradients: list[Any] = []
 
-        def fwd_hook(_m: nn.Module, _inp: Any, out: torch.Tensor) -> None:
+        def fwd_hook(_m: nn.Module, _inp: Any, out: Any) -> None:
             activations[:] = [out.detach()]
 
-        def bwd_hook(_m: nn.Module, _gi: Any, go: tuple[torch.Tensor, ...]) -> None:
+        def bwd_hook(_m: nn.Module, _gi: Any, go: tuple[Any, ...]) -> None:
             gradients[:] = [go[0].detach()]
 
         fwd_h = target_layer.register_forward_hook(fwd_hook)
